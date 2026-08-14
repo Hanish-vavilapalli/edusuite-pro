@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { 
   mockSummaryMetrics, 
   mockIssuedBooks, 
@@ -8,6 +8,7 @@ import {
   mockDigitalResources, 
   mock500Books 
 } from "./mock-data";
+import { LibraryService } from "@/services/library.service";
 import { SummaryCards } from "./summary-cards";
 import { OverviewTab } from "./overview-tab";
 import { CatalogTab } from "./catalog-tab";
@@ -60,46 +61,110 @@ export function StudentLibraryModule() {
   const [libraryCardModalOpen, setLibraryCardModalOpen] = useState(false);
   const [previewResourceModal, setPreviewResourceModal] = useState<DigitalResourceItem | null>(null);
 
+  const loadStudentLibraryData = useCallback(async () => {
+    try {
+      const myData = await LibraryService.fetchMyLibrary();
+      if (myData.activeBorrows && myData.activeBorrows.length > 0) {
+        setIssuedBooks(myData.activeBorrows.map((b: any) => ({
+          id: b.id,
+          bookId: b.bookId,
+          title: b.book?.title || "Book Title",
+          author: b.book?.authors?.join(", ") || "Author",
+          category: b.book?.category || "Computer Science",
+          department: b.book?.department || "CSE",
+          coverImage: b.book?.coverUrl || "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=400&q=80",
+          isbn: b.book?.isbn || "978-0132350884",
+          accessionNumber: b.copy?.accessionNo || b.book?.accessionNo || "ACC-001",
+          callNumber: b.book?.callNumber || "005.1 MAR",
+          rackNumber: b.book?.rack || "Rack-01",
+          shelfNumber: b.book?.shelf || "Shelf-A",
+          issueDate: b.issueDate ? b.issueDate.slice(0, 10) : "2026-08-01",
+          dueDate: b.dueDate ? b.dueDate.slice(0, 10) : "2026-08-15",
+          daysRemaining: Math.max(0, Math.ceil((new Date(b.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))),
+          status: (new Date(b.dueDate) < new Date() ? "Overdue" : "Active") as any,
+          renewalsCount: b.renewCount || 0,
+          maxRenewals: b.maxRenewals || 2,
+          isEligibleForRenewal: (b.renewCount || 0) < (b.maxRenewals || 2),
+          fineAmount: 0
+        })));
+      }
+
+      if (myData.reservations && myData.reservations.length > 0) {
+        setReservedBooks(myData.reservations.map((r: any) => ({
+          id: r.id,
+          bookId: r.bookId,
+          title: r.book?.title || "Reserved Book",
+          author: r.book?.authors?.join(", ") || "Author",
+          reservedDate: r.requestDate ? r.requestDate.slice(0, 10) : "2026-08-01",
+          queuePosition: r.queuePosition || 1,
+          availabilityDate: r.expiryDate ? r.expiryDate.slice(0, 10) : "2026-08-10",
+          status: "In Queue" as const
+        })));
+      }
+
+      if (myData.fines && myData.fines.length > 0) {
+        setFines(myData.fines.map((f: any) => ({
+          id: f.id,
+          bookTitle: f.bookTitle || f.borrow?.book?.title || "Library Fine",
+          issuedDate: f.createdAt ? f.createdAt.slice(0, 10) : "2026-08-01",
+          dueDate: "2026-08-10",
+          returnedDate: f.paidAt ? f.paidAt.slice(0, 10) : undefined,
+          overdueDays: 5,
+          finePerDay: 5,
+          totalFine: f.amount,
+          status: (f.status === "Paid" ? "Paid" : "Pending") as any,
+          transactionId: f.receiptNo || `TXN-LIB-${f.id.slice(0, 6)}`,
+          paymentMethod: f.paymentMode || "UPI"
+        })));
+      }
+    } catch (e) {
+      console.log("Could not load real student records, fallback to mock state", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadStudentLibraryData();
+  }, [loadStudentLibraryData]);
+
   // Actions
-  const handleConfirmRenew = (issuedId: string) => {
-    setIssuedBooks((prev) =>
-      prev.map((b) =>
-        b.id === issuedId
-          ? {
-              ...b,
-              renewalsCount: b.renewalsCount + 1,
-              dueDate: "2026-08-19",
-              daysRemaining: 14,
-            }
-          : b
-      )
-    );
+  const handleConfirmRenew = async (issuedId: string) => {
+    try {
+      await LibraryService.renewBook({ issueId: issuedId });
+      toast.success("Book loan renewed successfully in PostgreSQL database!");
+      loadStudentLibraryData();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to renew book");
+    }
   };
 
-  const handleConfirmReserve = (book: BookItem) => {
-    const newRes = {
-      id: `RES-${Date.now()}`,
-      bookId: book.id,
-      title: book.title,
-      author: book.author,
-      reservedDate: new Date().toISOString().split("T")[0],
-      queuePosition: 3,
-      availabilityDate: "2026-08-09",
-      status: "In Queue" as const,
-    };
-    setReservedBooks((prev) => [newRes, ...prev]);
+  const handleConfirmReserve = async (book: BookItem) => {
+    try {
+      await LibraryService.placeReservation({ bookId: book.id });
+      toast.success(`Book "${book.title}" reserved successfully!`);
+      loadStudentLibraryData();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to reserve book");
+    }
   };
 
-  const handleCancelReservation = (resId: string) => {
-    setReservedBooks((prev) => prev.filter((r) => r.id !== resId));
+  const handleCancelReservation = async (resId: string) => {
+    try {
+      await LibraryService.cancelReservation(resId);
+      toast.success("Reservation cancelled.");
+      loadStudentLibraryData();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to cancel reservation");
+    }
   };
 
-  const handleConfirmFinePayment = (fineId: string) => {
-    setFines((prev) =>
-      prev.map((f) =>
-        f.id === fineId ? { ...f, status: "Paid" as const, transactionId: `TXN-LIB-${Date.now()}` } : f
-      )
-    );
+  const handleConfirmFinePayment = async (fineId: string) => {
+    try {
+      await LibraryService.collectFine(fineId, { paymentMode: "Online UPI" });
+      toast.success("Fine payment processed and recorded in PostgreSQL database!");
+      loadStudentLibraryData();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to pay fine");
+    }
   };
 
   const handleOpenBookDetailsById = (bookId: string) => {

@@ -45,6 +45,9 @@ import superAdminRoutes from "./modules/super-admin/super-admin.routes";
 import academicsRoutes from "./modules/academics/academics.routes";
 import payrollRoutes from "./modules/payroll/payroll.routes";
 import deanRoutes from "./modules/dean/dean.routes";
+import approvalsRoutes from "./modules/approvals/approvals.routes";
+import alumniAnalyticsRoutes from "./modules/alumni-analytics/alumni-analytics.routes";
+import libraryRoutes from "./modules/library/library.routes";
 
 // Register routes
 app.use("/api/auth", authRoutes);
@@ -62,8 +65,12 @@ app.use("/api/academics", academicsRoutes);
 app.use("/api/academic", academicsRoutes);
 app.use("/api/payroll", payrollRoutes);
 app.use("/api/dean", deanRoutes);
+app.use("/api/approvals", approvalsRoutes);
+app.use("/api/admin/alumni/analytics", alumniAnalyticsRoutes);
+app.use("/api/library", libraryRoutes);
 
 // Boot server
 app.listen(PORT, () => {
   console.log(`EduSuite Backend API Server is listening on http://localhost:${PORT}`);
 });
+

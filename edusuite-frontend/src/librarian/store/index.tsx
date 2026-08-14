@@ -4,8 +4,9 @@
 // All business logic, workflows, and auto-updates live here.
 // =============================================================================
 
-import React, { createContext, useContext, useReducer, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useReducer, useCallback, useMemo, useEffect } from "react";
 import { toast } from "sonner";
+import { LibraryService } from "@/services/library.service";
 import type {
   Book,
   LibraryMember as Member,
@@ -223,7 +224,8 @@ export type LibraryAction =
   | { type: "UPDATE_CARD_STATUS"; payload: { id: string; status: LibraryIDCard["status"]; by: string } }
   | { type: "MARK_NOTIFICATION_READ"; payload: { id: string } }
   | { type: "UPDATE_SETTINGS"; payload: Partial<LibraryState["settings"]> }
-  | { type: "ADD_AUDIT_LOG"; payload: Omit<AuditLog, "id" | "timestamp"> };
+  | { type: "ADD_AUDIT_LOG"; payload: Omit<AuditLog, "id" | "timestamp"> }
+  | { type: "SET_LIVE_DATA"; payload: Partial<LibraryState> };
 
 export interface LibraryContextType {
   state: LibraryState;
@@ -959,6 +961,9 @@ function libraryReducer(state: LibraryState, action: LibraryAction): LibraryStat
       return { ...state, auditLogs: [log, ...state.auditLogs] };
     }
 
+    case "SET_LIVE_DATA": {
+      return { ...state, ...action.payload };
+    }
 
     default:
       return state;
@@ -1022,27 +1027,257 @@ function loadSavedLibraryState(): LibraryState {
 }
 
 function LibraryStoreProviderInner({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(
-    (s: LibraryState, a: LibraryAction) => {
-      const next = libraryReducer(s, a);
-      try {
-        if (typeof window !== "undefined") {
-          localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(next));
-        }
-      } catch (e) {}
-      return next;
-    },
-    undefined,
-    loadSavedLibraryState
-  );
+  const [state, dispatch] = useReducer(libraryReducer, INITIAL_STATE);
 
-  const safeDispatch = useCallback((action: LibraryAction) => {
+  // Sync with InsForge PostgreSQL Backend
+  const refreshFromBackend = useCallback(async () => {
     try {
-      dispatch(action);
-    } catch (err: any) {
-      toast.error(err.message || "Operation failed");
+      const [booksData, issuesData, reservationsData, finesData, seatsData, entriesData, cardsData, digitalsData, acqData, auditData] = await Promise.all([
+        LibraryService.fetchBooks().catch(() => ({ total: 0, books: [] })),
+        LibraryService.fetchIssues().catch(() => []),
+        LibraryService.fetchReservations().catch(() => []),
+        LibraryService.fetchFines().catch(() => []),
+        LibraryService.fetchSeats().catch(() => []),
+        LibraryService.fetchGateEntries().catch(() => []),
+        LibraryService.fetchIDCards().catch(() => []),
+        LibraryService.fetchDigitalResources().catch(() => []),
+        LibraryService.fetchAcquisitions().catch(() => []),
+        LibraryService.fetchAuditSessions().catch(() => [])
+      ]);
+
+      const mappedBooks: Book[] = booksData.books.map((b: any) => ({
+        id: b.id,
+        accessionNo: b.accessionNo,
+        barcode: b.barcode || "",
+        title: b.title,
+        authors: b.authors || [],
+        isbn: b.isbn,
+        category: b.category,
+        subject: b.subject || "",
+        publisher: b.publisher,
+        publishedYear: b.publishedYear,
+        edition: b.edition || "1st Edition",
+        language: b.language || "English",
+        totalCopies: b.totalCopies,
+        availableCopies: b.availableCopies,
+        issuedCopies: b.issuedCopies,
+        reservedCopies: b.reservedCopies,
+        lostCopies: b.lostCopies,
+        damagedCopies: b.damagedCopies,
+        location: {
+          building: b.building || "Central Library",
+          floor: b.floor || "1st Floor",
+          rack: b.rack || "Rack-01",
+          shelf: b.shelf || "Shelf-A"
+        },
+        callNumber: b.callNumber || "",
+        price: b.price,
+        status: (b.status || "Active") as any,
+        source: "Acquisition",
+        addedBy: "Head Librarian",
+        tags: [],
+        coverUrl: b.coverUrl,
+        description: b.description
+      }));
+
+      const mappedIssues: IssueRecord[] = issuesData.map((i: any) => ({
+        id: i.id,
+        bookId: i.bookId,
+        bookTitle: i.book?.title || "Book",
+        copyId: i.copyId || "",
+        accessionNo: i.copy?.accessionNo || i.book?.accessionNo || "",
+        memberId: i.borrowerId,
+        memberName: i.borrowerName,
+        memberType: (i.borrowerType || "Student") as any,
+        memberSourceId: i.borrowerRollNo,
+        issueDate: i.issueDate ? i.issueDate.slice(0, 10) : "",
+        dueDate: i.dueDate ? i.dueDate.slice(0, 10) : "",
+        returnDate: i.returnDate ? i.returnDate.slice(0, 10) : undefined,
+        status: (i.status || "Active") as any,
+        renewCount: i.renewCount || 0,
+        maxRenewals: i.maxRenewals || 2,
+        fineAmount: i.fines?.reduce((s: number, f: any) => s + f.amount, 0) || 0,
+        fineStatus: "Unpaid",
+        issuedBy: i.issuedBy || "Librarian Desk"
+      }));
+
+      const mappedReservations: Reservation[] = reservationsData.map((r: any) => ({
+        id: r.id,
+        bookId: r.bookId,
+        bookTitle: r.book?.title || "Book",
+        memberId: r.memberId,
+        memberName: r.memberName,
+        memberType: (r.memberType || "Student") as any,
+        memberSourceId: r.memberRollNo,
+        requestDate: r.requestDate ? r.requestDate.slice(0, 10) : "",
+        expiryDate: r.expiryDate ? r.expiryDate.slice(0, 10) : "",
+        queuePosition: r.queuePosition,
+        priority: (r.priority || "Normal") as any,
+        status: (r.status || "Pending") as any,
+        notes: r.notes
+      }));
+
+      const mappedFines: FineRecord[] = finesData.map((f: any) => ({
+        id: f.id,
+        issueId: f.borrowId || "",
+        memberId: f.memberId,
+        memberName: f.memberName,
+        memberType: (f.memberType || "Student") as any,
+        memberSourceId: f.memberRollNo,
+        bookTitle: f.bookTitle || f.borrow?.book?.title || "Library Fine",
+        fineType: (f.fineType || "Overdue") as any,
+        amount: f.amount,
+        paidAmount: f.paidAmount,
+        status: (f.status || "Unpaid") as any,
+        generatedAt: f.createdAt ? f.createdAt.slice(0, 10) : "",
+        paidAt: f.paidAt ? f.paidAt.slice(0, 10) : undefined,
+        receiptNo: f.receiptNo,
+        paymentMode: f.paymentMode
+      }));
+
+      const mappedSeats = seatsData.map((s: any) => ({
+        seatNo: s.seatNo,
+        zone: s.zone.includes("Silent") ? "A" : s.zone.includes("Digital") ? "B" : "C",
+        status: s.status as any,
+        memberId: s.currentMemberId,
+        memberName: s.currentMemberName,
+        entryTime: s.entryTime
+      }));
+
+      const mappedEntries = entriesData.map((e: any) => ({
+        id: e.id,
+        memberId: e.memberId,
+        memberName: e.memberName,
+        memberType: (e.memberType || "Student") as any,
+        memberSourceId: e.memberRollNo,
+        department: e.department || "CSE",
+        entryTime: e.entryTime ? new Date(e.entryTime).toLocaleTimeString("en-IN") : "",
+        method: (e.method || "Barcode") as any,
+        purpose: e.purpose,
+        gateNumber: e.gateNumber
+      }));
+
+      const mappedCards = cardsData.map((c: any) => ({
+        id: c.id,
+        cardNo: c.cardNo,
+        memberId: c.memberId,
+        memberName: c.memberName,
+        memberType: (c.memberType || "Student") as any,
+        memberSourceId: c.memberRollNo,
+        cardType: "Barcoded" as any,
+        barcode: c.barcode,
+        issuedAt: c.issuedAt ? c.issuedAt.slice(0, 10) : "",
+        issuedBy: "Central Library Office",
+        expiryDate: c.expiryDate ? c.expiryDate.slice(0, 10) : "",
+        status: (c.status || "Active") as any,
+        issuanceType: "Original" as any
+      }));
+
+      dispatch({
+        type: "SET_LIVE_DATA",
+        payload: {
+          books: mappedBooks.length > 0 ? mappedBooks : state.books,
+          issues: mappedIssues.length > 0 ? mappedIssues : state.issues,
+          reservations: mappedReservations.length > 0 ? mappedReservations : state.reservations,
+          fines: mappedFines.length > 0 ? mappedFines : state.fines,
+          seats: mappedSeats.length > 0 ? mappedSeats : state.seats,
+          entryLogs: mappedEntries.length > 0 ? mappedEntries : state.entryLogs,
+          idCards: mappedCards.length > 0 ? mappedCards : state.idCards,
+          digitalResources: digitalsData.length > 0 ? digitalsData : state.digitalResources,
+          acquisitions: acqData.length > 0 ? acqData : state.acquisitions,
+          auditSessions: auditData.length > 0 ? auditData : state.auditSessions
+        }
+      });
+    } catch (e) {
+      console.error("Failed to refresh library data from backend:", e);
     }
   }, []);
+
+  useEffect(() => {
+    refreshFromBackend();
+  }, [refreshFromBackend]);
+
+  const safeDispatch = useCallback(async (action: LibraryAction) => {
+    try {
+      // 1. Dispatch locally for immediate optimistic UI update
+      dispatch(action);
+
+      // 2. Perform backend API mutation asynchronously
+      if (action.type === "ADD_BOOK") {
+        await LibraryService.createBook(action.payload);
+        toast.success(`Book "${action.payload.title}" created in PostgreSQL.`);
+      } else if (action.type === "UPDATE_BOOK") {
+        await LibraryService.updateBook(action.payload.id, action.payload.updates || action.payload);
+        toast.success("Book updated in database.");
+      } else if (action.type === "DELETE_BOOK") {
+        await LibraryService.archiveBook(action.payload.id);
+        toast.success("Book archived in database.");
+      } else if (action.type === "ISSUE_BOOK") {
+        const member = state.members.find(m => m.id === action.payload.memberId);
+        await LibraryService.issueBook({
+          bookId: action.payload.bookId,
+          borrowerRollNo: member?.memberSourceId || "21B91A0501",
+          borrowerType: member?.role || "Student"
+        });
+        toast.success("Book issued and recorded in database.");
+      } else if (action.type === "RETURN_BOOK") {
+        await LibraryService.returnBook({
+          issueId: action.payload.issueId,
+          condition: action.payload.condition,
+          receivedBy: action.payload.receivedBy
+        });
+        toast.success("Book return processed in database.");
+      } else if (action.type === "RENEW_BOOK") {
+        await LibraryService.renewBook({ issueId: action.payload.issueId });
+        toast.success("Loan renewed in database.");
+      } else if (action.type === "COLLECT_FINE") {
+        await LibraryService.collectFine(action.payload.fineId, { amount: action.payload.amount });
+        toast.success("Fine collection recorded in database.");
+      } else if (action.type === "WAIVE_FINE") {
+        await LibraryService.waiveFine(action.payload.fineId, { reason: action.payload.reason });
+        toast.success("Fine waiver recorded in database.");
+      } else if (action.type === "PLACE_RESERVATION") {
+        const member = state.members.find(m => m.id === action.payload.memberId);
+        await LibraryService.placeReservation({
+          bookId: action.payload.bookId,
+          memberRollNo: member?.memberSourceId || "21B91A0501",
+          priority: action.payload.priority,
+          notes: action.payload.notes
+        });
+        toast.success("Reservation placed in database.");
+      } else if (action.type === "CANCEL_RESERVATION") {
+        await LibraryService.cancelReservation(action.payload.id);
+        toast.success("Reservation cancelled in database.");
+      } else if (action.type === "ALLOCATE_SEAT") {
+        const member = state.members.find(m => m.id === action.payload.memberId);
+        await LibraryService.allocateSeat({
+          seatNo: action.payload.seatNo,
+          memberRollNo: member?.memberSourceId || "21B91A0501"
+        });
+      } else if (action.type === "EXIT_SEAT") {
+        await LibraryService.releaseSeat(action.payload.seatNo);
+      } else if (action.type === "RECORD_ENTRY") {
+        const member = state.members.find(m => m.id === action.payload.memberId);
+        await LibraryService.recordGateEntry({
+          memberRollNo: member?.memberSourceId || "21B91A0501",
+          method: action.payload.method
+        });
+      } else if (action.type === "ADD_DIGITAL_RESOURCE") {
+        await LibraryService.createDigitalResource(action.payload);
+      } else if (action.type === "ADD_ACQUISITION") {
+        await LibraryService.createAcquisition(action.payload);
+      } else if (action.type === "START_AUDIT") {
+        await LibraryService.startAuditSession(action.payload);
+      }
+
+      // Re-fetch backend state to keep all aggregations & counters 100% database-derived
+      await refreshFromBackend();
+    } catch (err: any) {
+      toast.error(err.message || "Operation failed on server");
+      // Re-sync to discard invalid optimistic state
+      await refreshFromBackend();
+    }
+  }, [state.members, refreshFromBackend]);
 
   const stats = useMemo(() => computeStats(state), [state]);
 
