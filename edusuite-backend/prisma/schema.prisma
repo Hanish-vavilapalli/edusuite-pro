@@ -278,33 +278,34 @@ model SalaryStructure {
 }
 
 model PayrollRecord {
-  id                     String    @id @default(uuid())
+  id                     String            @id @default(uuid())
   employeeId             String
   facultyId              String?
-  faculty                Faculty?  @relation(fields: [facultyId], references: [id], onDelete: SetNull)
+  faculty                Faculty?          @relation(fields: [facultyId], references: [id], onDelete: SetNull)
   employeeName           String
   employeeRollNumber     String?
   department             String
   designation            String
-  employeeType           String    @default("Faculty") // "Faculty" | "Staff"
-  monthYear              String    // e.g. "July 2026"
-  financialYear          String    @default("FY 2026-27") // e.g. "FY 2026-27"
+  employeeType           String            @default("Faculty") // "Faculty" | "Staff"
+  monthYear              String            // e.g. "July 2026"
+  financialYear          String            @default("FY 2026-27") // e.g. "FY 2026-27"
   basicPay               Float
-  da                     Float     @default(0)
-  hra                    Float     @default(0)
-  allowances             Float     @default(0)
-  deductions             Float     @default(0)
+  da                     Float             @default(0)
+  hra                    Float             @default(0)
+  allowances             Float             @default(0)
+  deductions             Float             @default(0)
   grossSalary            Float
   netSalary              Float
-  status                 String    @default("Paid") // "Paid" | "Processing" | "Pending Approval"
-  paymentDate            String?   // YYYY-MM-DD
-  bankAccount            String?   // Masked bank account e.g. "HDFC-****-8812"
-  paymentReference       String?   // e.g. "TXN-998822"
-  earningsJson           String?   // Full JSON breakdown
-  deductionsJson         String?   // Full JSON breakdown
-  attendanceImpactJson   String?   // Full JSON impact
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
+  status                 String            @default("Paid") // "Paid" | "Processing" | "Pending Approval" | "HR_VERIFIED" | "FINANCE_REVIEW" | "SUPER_ADMIN_PENDING"
+  paymentDate            String?           // YYYY-MM-DD
+  bankAccount            String?           // Masked bank account e.g. "HDFC-****-8812"
+  paymentReference       String?           // e.g. "TXN-998822"
+  earningsJson           String?           // Full JSON breakdown
+  deductionsJson         String?           // Full JSON breakdown
+  attendanceImpactJson   String?           // Full JSON impact
+  approvalRequests       ApprovalRequest[]
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
 
   @@unique([employeeId, monthYear])
   @@index([employeeId])
@@ -332,37 +333,39 @@ model BankDetails {
 }
 
 model BankChangeRequest {
-  id                   String   @id @default(uuid())
+  id                   String            @id @default(uuid())
   employeeId           String
   facultyId            String?
-  faculty              Faculty? @relation(fields: [facultyId], references: [id], onDelete: SetNull)
+  faculty              Faculty?          @relation(fields: [facultyId], references: [id], onDelete: SetNull)
   requestedBankName    String
   requestedAccountNumber String
   requestedIfscCode    String
   requestedBranch      String?
   requestedNomineeName String?
-  status               String   @default("Pending") // "Pending" | "Approved" | "Rejected"
+  status               String            @default("Pending") // "Pending" | "Approved" | "Rejected" | "HR_VERIFIED" | "FINANCE_REVIEW" | "SUPER_ADMIN_PENDING"
   rejectionReason      String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  approvalRequests     ApprovalRequest[]
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
 
   @@index([employeeId])
   @@index([status])
 }
 
 model Reimbursement {
-  id             String    @id @default(uuid())
+  id             String            @id @default(uuid())
   employeeId     String
   facultyId      String?
-  faculty        Faculty?  @relation(fields: [facultyId], references: [id], onDelete: SetNull)
-  category       String    // "Travel Allowance" | "Research Grant" | "Book Purchase" | "Conference Expenses" | "Lab Expenses"
+  faculty        Faculty?          @relation(fields: [facultyId], references: [id], onDelete: SetNull)
+  category       String            // "Travel Allowance" | "Research Grant" | "Book Purchase" | "Conference Expenses" | "Lab Expenses"
   amount         Float
-  status         String    @default("Pending") // "Paid" | "Approved" | "Pending" | "Rejected"
-  claimDate      String    // YYYY-MM-DD
-  approvalDate   String?   // YYYY-MM-DD
+  status         String            @default("Pending") // "Paid" | "Approved" | "Pending" | "Rejected" | "HR_VERIFIED" | "FINANCE_REVIEW" | "SUPER_ADMIN_PENDING"
+  claimDate      String            // YYYY-MM-DD
+  approvalDate   String?           // YYYY-MM-DD
   remarks        String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  approvalRequests ApprovalRequest[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
   @@index([employeeId])
   @@index([status])
@@ -388,4 +391,550 @@ model SubjectAllocation {
   @@index([facultyId])
   @@index([courseId])
   @@index([academicYear])
+}
+
+model ApprovalRequest {
+  id                   String             @id @default(uuid())
+  requestNumber        String             @unique // e.g. "REQ-2026-0801"
+  requestType          String             // "PAYROLL" | "REIMBURSEMENT" | "BANK_CHANGE" | "PAYROLL_DISBURSEMENT"
+  title                String
+  description          String?
+  amount               Float?             @default(0)
+
+  // Target Entity Linkage
+  payrollRecordId      String?
+  payrollRecord        PayrollRecord?     @relation(fields: [payrollRecordId], references: [id], onDelete: SetNull)
+  reimbursementId      String?
+  reimbursement        Reimbursement?     @relation(fields: [reimbursementId], references: [id], onDelete: SetNull)
+  bankChangeRequestId  String?
+  bankChangeRequest    BankChangeRequest? @relation(fields: [bankChangeRequestId], references: [id], onDelete: SetNull)
+
+  // Requester Metadata
+  requestedBy          String
+  requestedByRole      String             // "faculty" | "staff" | "hr" | "finance"
+  department           String
+
+  // Workflow Stages & Statuses
+  // States: SUBMITTED -> HR_VERIFIED -> FINANCE_REVIEW -> SUPER_ADMIN_PENDING -> PROCESSING -> APPROVED -> PAID / UPDATED | REJECTED | RETURNED
+  currentStage         String             @default("SUBMITTED") // "SUBMITTED" | "HR_VERIFICATION" | "FINANCE_REVIEW" | "SUPER_ADMIN_PENDING" | "FINALIZED"
+  status               String             @default("SUBMITTED")
+  priority             String             @default("High")      // "Normal" | "High" | "Critical"
+
+  // 3-Tier Verification Sign-offs
+  hrVerifiedBy         String?
+  hrVerifiedAt         DateTime?
+  hrNotes              String?
+
+  financeReviewedBy    String?
+  financeReviewedAt    DateTime?
+  financeNotes         String?
+
+  superAdminDecisionBy String?
+  superAdminDecisionAt DateTime?
+  superAdminNotes      String?
+
+  rejectionReason      String?
+  returnedToStage      String?
+
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([requestType])
+  @@index([currentStage])
+  @@index([status])
+  @@index([department])
+}
+
+model Alumni {
+  id                  String             @id @default(uuid())
+  alumniId            String             @unique // e.g. "ALM-2020-001"
+  name                String
+  email               String             @unique
+  phone               String?
+  batchYear           String             // e.g. "Batch of 2020"
+  department          String             // e.g. "Computer Science (CSE)"
+  degree              String?            // e.g. "B.Tech in CSE"
+  graduationYear      Int                @default(2020)
+  currentCompany      String
+  designation         String
+  industry            String             @default("Technology & Software")
+  location            String             // e.g. "Mountain View, CA, USA"
+  country             String             // e.g. "USA"
+  experienceYears     Int                @default(5)
+  skills              String?            // JSON string e.g. ["Go", "Kubernetes"]
+  mentoringStatus     String             @default("Active Mentor") // "Active Mentor" | "Open to Referrals" | "Guest Speaker" | "Industry Advisor"
+  employmentStatus    String             @default("Employed") // "Employed" | "Entrepreneur" | "Higher Studies" | "Research Fellow"
+  profilePhoto        String?
+  bio                 String?
+  linkedInUrl         String?
+  githubUrl           String?
+  contributionsTotal  Float              @default(0)
+  isVerified          Boolean            @default(true)
+  jobs                AlumniJob[]
+  referralRequests    ReferralRequest[]
+  mentorships         AlumniMentorship[]
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([batchYear])
+  @@index([department])
+  @@index([currentCompany])
+  @@index([country])
+  @@index([mentoringStatus])
+}
+
+model AlumniJob {
+  id                  String             @id @default(uuid())
+  jobId               String             @unique // e.g. "JOB-ALM-001"
+  alumniId            String
+  alumni              Alumni             @relation(fields: [alumniId], references: [id], onDelete: Cascade)
+  company             String
+  jobTitle            String
+  location            String
+  employmentType      String             @default("Full-Time") // "Full-Time" | "Remote" | "Hybrid" | "Contract"
+  experienceRequired  String
+  ctcRange            String
+  skills              String?            // JSON string
+  department          String             @default("Computer Science")
+  description         String
+  applicationUrl      String?
+  status              String             @default("Active") // "Active" | "Closed"
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([alumniId])
+  @@index([company])
+  @@index([department])
+}
+
+model ReferralRequest {
+  id                  String             @id @default(uuid())
+  jobId               String?
+  alumniId            String
+  alumni              Alumni             @relation(fields: [alumniId], references: [id], onDelete: Cascade)
+  studentId           String?
+  studentName         String
+  studentEmail        String
+  resumeUrl           String?
+  message             String
+  status              String             @default("Pending") // "Pending" | "Accepted" | "Rejected"
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([alumniId])
+  @@index([status])
+}
+
+model AlumniMentorship {
+  id                  String             @id @default(uuid())
+  alumniId            String
+  alumni              Alumni             @relation(fields: [alumniId], references: [id], onDelete: Cascade)
+  domain              String             // e.g. "LLM / AI", "VLSI", "EV Systems", "SaaS Engineering"
+  availableSlots      String?            // JSON string
+  rating              Float              @default(4.9)
+  sessionsCompleted   Int                @default(12)
+  status              String             @default("Available") // "Available" | "Busy"
+  sessions            MentorshipSession[]
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([alumniId])
+  @@index([domain])
+}
+
+model MentorshipSession {
+  id                  String             @id @default(uuid())
+  mentorshipId        String
+  mentorship          AlumniMentorship   @relation(fields: [mentorshipId], references: [id], onDelete: Cascade)
+  studentId           String?
+  studentName         String
+  scheduledAt         DateTime
+  durationMinutes     Int                @default(45)
+  meetingUrl          String?
+  status              String             @default("Booked") // "Booked" | "Completed" | "Cancelled"
+  notes               String?
+  rating              Float?
+  feedback            String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([mentorshipId])
+}
+
+model AlumniEvent {
+  id                  String             @id @default(uuid())
+  eventId             String             @unique // e.g. "EVT-ALM-001"
+  title               String
+  description         String
+  category            String             @default("Global Reunion") // "Global Reunion" | "Tech Symposium" | "Career Fireside" | "Regional Meetup" | "Workshop"
+  eventDate           String
+  eventTime           String
+  venue               String
+  organizer           String             @default("EduSuite Alumni Association")
+  speakers            String?            // JSON string
+  capacity            Int                @default(500)
+  registeredCount     Int                @default(0)
+  status              String             @default("Upcoming") // "Upcoming" | "Completed" | "Cancelled"
+  registrations       EventRegistration[]
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([category])
+  @@index([status])
+}
+
+model EventRegistration {
+  id                  String             @id @default(uuid())
+  eventId             String
+  event               AlumniEvent        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  alumniId            String?
+  attendeeName        String
+  attendeeEmail       String
+  qrToken             String             @unique // e.g. "QR-EVT-99124"
+  status              String             @default("Registered") // "Registered" | "Checked-In" | "Cancelled"
+  checkedInAt         DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([eventId])
+  @@index([qrToken])
+}
+
+model AlumniDonation {
+  id                  String             @id @default(uuid())
+  donationId          String             @unique // e.g. "DON-ALM-001"
+  alumniId            String?
+  donorName           String
+  donorEmail          String
+  amount              Float
+  currency            String             @default("INR")
+  campaign            String             @default("Annual Campus Growth Fund")
+  purpose             String             // "Campus Labs" | "Research Grants" | "Student Scholarships" | "General Endowment"
+  paymentReference    String
+  paymentStatus       String             @default("Success") // "Success" | "Pending" | "Failed"
+  donatedAt           DateTime           @default(now())
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([purpose])
+  @@index([paymentStatus])
+}
+
+model AlumniChapter {
+  id                  String             @id @default(uuid())
+  name                String             @unique // e.g. "Silicon Valley Chapter", "Bengaluru Chapter"
+  country             String
+  city                String
+  coordinatorName     String
+  memberCount         Int                @default(1500)
+  status              String             @default("Active")
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+}
+
+model AlumniFeedback {
+  id                      String         @id @default(uuid())
+  alumniId                String?
+  alumniName              String
+  graduationYear          Int
+  department              String
+  curriculumRating        Int            @default(5) // 1-5
+  industryReadinessRating Int            @default(5)
+  facultyRating           Int            @default(5)
+  placementRating         Int            @default(5)
+  infrastructureRating    Int            @default(5)
+  comments                String?
+  status                  String         @default("Approved") // "Approved" | "Pending Review"
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+
+  @@index([department])
+  @@index([graduationYear])
+}
+
+// ==========================================
+// LIBRARY MANAGEMENT ERP MODULE
+// ==========================================
+
+model LibraryBook {
+  id              String            @id @default(uuid())
+  accessionNo     String            @unique // e.g. "GMRIT/2026/0001"
+  barcode         String?           @unique
+  qrCode          String?
+  isbn            String
+  title           String
+  authors         String[]
+  publisher       String
+  publishedYear   Int
+  edition         String?           @default("1st Edition")
+  category        String            // "Computer Science" | "Electronics" | "Mechanical" | "Civil" | "Mathematics" | "General" | "Reference"
+  subject         String?
+  department      String?
+  language        String            @default("English")
+  totalCopies     Int               @default(1)
+  availableCopies Int               @default(1)
+  issuedCopies    Int               @default(0)
+  reservedCopies  Int               @default(0)
+  lostCopies      Int               @default(0)
+  damagedCopies   Int               @default(0)
+  callNumber      String?           // e.g. "005.133 COR"
+  building        String?           @default("Central Library")
+  floor           String?           @default("1st Floor")
+  rack            String?           @default("Rack-04")
+  shelf           String?           @default("Shelf-B")
+  price           Float             @default(0.0)
+  status          String            @default("Active") // "Active" | "Archived" | "Under Maintenance"
+  source          String            @default("Acquisition") // "Acquisition" | "Donation" | "Grant" | "Manual"
+  addedBy         String?           @default("Head Librarian")
+  tags            String[]          @default([])
+  coverUrl        String?
+  description     String?
+  copies          BookCopy[]
+  borrows         BookBorrow[]
+  reservations    BookReservation[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([isbn])
+  @@index([category])
+  @@index([department])
+  @@index([title])
+}
+
+model BookCopy {
+  id              String            @id @default(uuid())
+  bookId          String
+  book            LibraryBook       @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  copyNumber      Int
+  accessionNo     String            @unique // e.g. "GMRIT/2026/0001-C1"
+  barcode         String            @unique
+  rfidTag         String?           @unique
+  status          String            @default("Available") // "Available" | "Issued" | "Reserved" | "Lost" | "Damaged"
+  condition       String            @default("Good") // "Mint" | "Good" | "Slightly Worn" | "Damaged"
+  building        String?           @default("Central Library")
+  floor           String?           @default("1st Floor")
+  rack            String?           @default("Rack-04")
+  shelf           String?           @default("Shelf-B")
+  borrows         BookBorrow[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([bookId])
+  @@index([barcode])
+  @@index([status])
+}
+
+model BookBorrow {
+  id              String            @id @default(uuid())
+  bookId          String
+  book            LibraryBook       @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  copyId          String?
+  copy            BookCopy?         @relation(fields: [copyId], references: [id])
+  borrowerId      String            // ID referencing Student.id or Faculty.id or Admin.id
+  borrowerType    String            // "Student" | "Faculty" | "Staff"
+  borrowerName    String
+  borrowerRollNo  String            // Roll / Employee number
+  borrowerEmail   String?
+  borrowerDept    String?
+  issueDate       DateTime          @default(now())
+  dueDate         DateTime
+  returnDate      DateTime?
+  renewCount      Int               @default(0)
+  maxRenewals     Int               @default(2)
+  status          String            @default("Active") // "Active" | "Returned" | "Overdue" | "Lost"
+  returnCondition String?           // "Good" | "Slightly Worn" | "Damaged" | "Lost"
+  issuedBy        String            @default("Librarian Desk")
+  receivedBy      String?
+  remarks         String?
+  fines           LibraryFine[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([borrowerId])
+  @@index([borrowerRollNo])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model BookReservation {
+  id              String            @id @default(uuid())
+  bookId          String
+  book            LibraryBook       @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  memberId        String            // Student.id or Faculty.id
+  memberType      String            // "Student" | "Faculty" | "Staff"
+  memberName      String
+  memberRollNo    String
+  requestDate     DateTime          @default(now())
+  expiryDate      DateTime
+  priority        String            @default("Normal") // "High" | "Normal" | "Low"
+  queuePosition   Int               @default(1)
+  status          String            @default("Pending") // "Pending" | "Fulfilled" | "Cancelled" | "Expired"
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([bookId])
+  @@index([memberId])
+  @@index([status])
+}
+
+model LibraryFine {
+  id              String            @id @default(uuid())
+  borrowId        String?
+  borrow          BookBorrow?       @relation(fields: [borrowId], references: [id])
+  memberId        String
+  memberType      String            // "Student" | "Faculty" | "Staff"
+  memberName      String
+  memberRollNo    String
+  bookTitle       String?
+  amount          Float
+  paidAmount      Float             @default(0.0)
+  fineType        String            @default("Overdue") // "Overdue" | "Lost Book" | "Damaged Book"
+  status          String            @default("Unpaid") // "Unpaid" | "Paid" | "Waived"
+  receiptNo       String?           @unique
+  paymentMode     String?           // "Cash" | "UPI" | "Online"
+  waiveReason     String?
+  waivedBy        String?
+  paidAt          DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([memberRollNo])
+  @@index([status])
+}
+
+model LibraryIDCard {
+  id              String            @id @default(uuid())
+  memberId        String
+  memberType      String            // "Student" | "Faculty" | "Staff"
+  memberName      String
+  memberRollNo    String            @unique
+  department      String?
+  cardNo          String            @unique
+  barcode         String            @unique
+  rfidTag         String?
+  approvalStatus  String            @default("Pending") // "Pending" | "Approved" | "Rejected"
+  handoverStatus  String            @default("Pending") // "Pending" | "HandedOver"
+  rejectionReason String?
+  issuedAt        DateTime?
+  expiryDate      DateTime?
+  status          String            @default("Active") // "Active" | "Blocked" | "Lost" | "Replaced"
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([approvalStatus])
+  @@index([handoverStatus])
+}
+
+model LibraryGateEntry {
+  id              String            @id @default(uuid())
+  memberId        String
+  memberType      String            // "Student" | "Faculty" | "Visitor"
+  memberName      String
+  memberRollNo    String
+  department      String?
+  entryTime       DateTime          @default(now())
+  exitTime        DateTime?
+  purpose         String            @default("Reading / Study") // "Book Issue" | "Reading" | "Digital Lab" | "Discussion"
+  method          String            @default("Barcode") // "Barcode" | "RFID" | "Manual"
+  gateNumber      String            @default("Main Gate")
+
+  @@index([entryTime])
+  @@index([memberRollNo])
+}
+
+model ReadingHallSeat {
+  id                String          @id @default(uuid())
+  seatNo            String          @unique
+  zone              String          // "A (Silent Study)" | "B (Digital Lab)" | "C (Discussion)"
+  status            String          @default("Available") // "Available" | "Occupied" | "Reserved"
+  currentMemberId   String?
+  currentMemberName String?
+  currentRollNo     String?
+  entryTime         DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([zone])
+  @@index([status])
+}
+
+model DigitalResource {
+  id              String            @id @default(uuid())
+  title           String
+  authors         String[]
+  resourceType    String            // "Journal" | "Conference Paper" | "E-Book" | "Thesis"
+  publisher       String?           // "IEEE" | "Springer" | "ACM" | "Elsevier" | "Oxford"
+  publishedYear   Int
+  department      String?
+  subject         String?
+  doi             String?
+  isbn            String?
+  keywords        String[]          @default([])
+  accessLevel     String            @default("Campus Only") // "Campus Only" | "Global"
+  fileUrl         String            @default("/resources/sample.pdf")
+  downloadCount   Int               @default(0)
+  viewCount       Int               @default(0)
+  uploadedBy      String            @default("Librarian Staff")
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([resourceType])
+  @@index([department])
+}
+
+model LibraryAcquisition {
+  id              String            @id @default(uuid())
+  poNumber        String            @unique // e.g. "PO-2026-001"
+  vendor          String            // "Pearson India", "Oxford University Press", "McGraw-Hill"
+  titlesCount     Int               @default(1)
+  totalQuantity   Int               @default(10)
+  totalAmount     Float             @default(0.0)
+  status          String            @default("Ordered") // "Ordered" | "In Inspection" | "Cataloged" | "Cancelled"
+  requestedBy     String            @default("Library Committee")
+  invoiceNumber   String?
+  deliveryDate    DateTime?
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([status])
+}
+
+model LibraryAuditSession {
+  id              String            @id @default(uuid())
+  sessionName     String            // e.g. "2026 Annual Central Stock Audit"
+  startedBy       String
+  startedAt       DateTime          @default(now())
+  completedAt     DateTime?
+  status          String            @default("InProgress") // "InProgress" | "Completed" | "Cancelled"
+  scope           String            @default("All Categories")
+  totalScanned    Int               @default(0)
+  verified        Int               @default(0)
+  missing         Int               @default(0)
+  damaged         Int               @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+model LibrarySetting {
+  id                          String   @id @default("global-library-settings")
+  loanPeriodStudentDays       Int      @default(14)
+  loanPeriodFacultyDays       Int      @default(30)
+  loanPeriodStaffDays         Int      @default(14)
+  maxBooksStudent             Int      @default(4)
+  maxBooksFaculty             Int      @default(10)
+  maxBooksStaff               Int      @default(4)
+  finePerDay                  Float    @default(5.0)
+  maxFine                     Float    @default(500.0)
+  gracePeriodDays             Int      @default(2)
+  lostBookMultiplier          Float    @default(2.0)
+  damagedBookFine             Float    @default(150.0)
+  duplicateCardFee            Float    @default(100.0)
+  reservationHoldValidityDays Int      @default(2)
+  maxRenewalsAllowed          Int      @default(2)
+  renewalExtensionDays        Int      @default(7)
+  instituteName               String   @default("EduSuite Pro Central Institute")
+  accessionPrefix             String   @default("GMRIT")
+  updatedAt                   DateTime @updatedAt
 }
