@@ -1,6 +1,6 @@
 export type LmsTabType =
-  | "my-courses"
   | "course-materials"
+  | "video-lectures"
   | "assignments"
   | "quizzes"
   | "online-classes"

@@ -38,13 +38,10 @@ export function LmsDashboardHeader({
   onQuickAction,
 }: LmsDashboardHeaderProps) {
   const tabs: { id: LmsTabType; label: string }[] = [
-    { id: "my-courses", label: "My Courses" },
     { id: "course-materials", label: "Course Materials" },
+    { id: "video-lectures", label: "Video Lectures" },
     { id: "assignments", label: "Assignments" },
     { id: "quizzes", label: "Quizzes" },
-    { id: "online-classes", label: "Online Classes" },
-    { id: "progress", label: "Progress & Analytics" },
-    { id: "certificates", label: "Certificates" },
   ];
 
   const kpiList = [
@@ -99,45 +96,20 @@ export function LmsDashboardHeader({
         </div>
       </div>
 
-      {/* TOP 8 KPI CARDS */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
-        {kpiList.map((kpi, idx) => {
-          const IconComp = kpi.icon;
-          return (
-            <div
-              key={idx}
-              className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-2 flex flex-col justify-between"
-            >
-              <div className="flex items-center justify-between">
-                <div className={`p-2 rounded-xl border ${kpi.color}`}>
-                  <IconComp className="h-3.5 w-3.5" />
-                </div>
-              </div>
-              <div>
-                <span className="text-lg font-extrabold font-mono text-slate-900 dark:text-white tracking-tight block">
-                  {kpi.value}
-                </span>
-                <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 block truncate">
-                  {kpi.label}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+
 
 
 
       {/* TAB NAVIGATION */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none border-b border-slate-200 dark:border-slate-800">
+      <div className="flex border border-border bg-muted/20 rounded-xl p-1 gap-2 shadow-xs w-full">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
-            className={`px-4 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all ${
+            className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all duration-200 flex-1 ${
               activeTab === tab.id
-                ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xs"
-                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                ? "bg-card text-primary shadow-2xs border border-border"
+                : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
             }`}
           >
             {tab.label}

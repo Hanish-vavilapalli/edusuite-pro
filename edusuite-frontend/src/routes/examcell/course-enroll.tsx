@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import api from "@/lib/api";
 import { toast } from "sonner";
 import { 
   BookOpen, 
@@ -54,10 +55,18 @@ const FACULTY_LIST = [
 
 const DEPARTMENTS = ["CSE", "AIML", "AIDS", "ECE", "EEE", "MECH", "CIVIL", "IT"];
 
+const normalizeDept = (dept: string) => {
+  if (dept === "AIML") return "AI&ML";
+  if (dept === "AIDS") return "AI&DS";
+  if (dept === "MECH") return "MECHANICAL";
+  return dept;
+};
+
 function CourseEnrollPage() {
   const [activeTab, setActiveTab] = useState<"courses" | "exams">("courses");
   const [courses, setCourses] = useState<MockCourseOffering[]>([]);
   const [students, setStudents] = useState<any[]>([]);
+  const [facultyList, setFacultyList] = useState<any[]>(FACULTY_LIST);
 
   // Filter states
   const [selectedDept, setSelectedDept] = useState("CSE");
@@ -74,8 +83,36 @@ function CourseEnrollPage() {
     { section: "A", dept: "CSE", mentor_id: "f1" }
   ]);
 
+  const loadCourses = async () => {
+    try {
+      const res = await api.get("/api/exams/courses");
+      if (res.data) {
+        setCourses(res.data);
+      }
+    } catch (err) {
+      console.error("Failed to load courses from DB", err);
+    }
+  };
+
+  const loadFaculty = async () => {
+    try {
+      const res = await api.get("/api/exams/faculty");
+      if (res.data && res.data.length > 0) {
+        setFacultyList(res.data);
+        // Update default section mentor based on active dept if present
+        const filtered = res.data.filter((f: any) => f.department === normalizeDept(selectedDept));
+        if (filtered.length > 0) {
+          setSectionsInput([{ section: "A", dept: selectedDept, mentor_id: filtered[0].id }]);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load faculty from DB", err);
+    }
+  };
+
   useEffect(() => {
-    setCourses(getMockCourses());
+    loadCourses();
+    loadFaculty();
     setStudents(getMockStudents());
   }, []);
 
@@ -95,14 +132,19 @@ function CourseEnrollPage() {
     c.semester === Number(selectedSem)
   );
 
-  const totalEnrollments = courses.reduce((acc, c) => acc + (c.status === "Approved" ? 25 : 0), 0);
+  const cohortStatus = filteredCourses.length > 0 ? filteredCourses[0].status : "Draft";
+  const isCohortFrozen = cohortStatus === "Pending" || cohortStatus === "Approved";
 
-  // Chart data formatting - Department-wise comparison for course registrations
-  const courseChartData = DEPARTMENTS.map(dName => {
-    const enrolled = courses.filter(c => c.department === dName && c.status === "Approved").length * 24;
-    const offeredCount = courses.filter(c => c.department === dName).length;
+  const totalEnrollments = courses.reduce((acc, c: any) => acc + (c.enrolledCount || 0), 0);
+
+  // Chart data formatting - Semester-wise comparison for course registrations of the selected department
+  const SEMESTERS_LIST = [1, 2, 3, 4, 5, 6, 7, 8];
+  const courseChartData = SEMESTERS_LIST.map(sem => {
+    const deptSemCourses = courses.filter(c => c.department === selectedDept && c.semester === sem);
+    const enrolled = deptSemCourses.reduce((acc, c: any) => acc + (c.enrolledCount || 0), 0);
+    const offeredCount = deptSemCourses.length;
     return {
-      name: dName,
+      name: `Sem ${sem}`,
       "Enrolled": enrolled,
       "Offered Courses": offeredCount
     };
@@ -136,7 +178,7 @@ function CourseEnrollPage() {
     const nextChar = String.fromCharCode(65 + sectionsInput.length); // B, C, D...
     setSectionsInput([
       ...sectionsInput, 
-      { section: nextChar, dept: selectedDept, mentor_id: FACULTY_LIST.filter(f => f.department === selectedDept)[0]?.id || "f1" }
+      { section: nextChar, dept: selectedDept, mentor_id: facultyList.filter(f => f.department === normalizeDept(selectedDept))[0]?.id || "f1" }
     ]);
   };
 
@@ -150,7 +192,7 @@ function CourseEnrollPage() {
       if (idx === index) {
         const updated = { ...item, [field]: value };
         if (field === "dept") {
-          const filtered = FACULTY_LIST.filter(f => f.department === value);
+          const filtered = facultyList.filter(f => f.department === normalizeDept(value));
           updated.mentor_id = filtered[0]?.id || "f1";
         }
         return updated;
@@ -159,53 +201,74 @@ function CourseEnrollPage() {
     }));
   };
 
-  const handleSaveCourse = (e: React.FormEvent) => {
+  const handleSaveCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!courseCode.trim() || !courseName.trim()) {
       toast.error("Please fill in course code and name.");
       return;
     }
 
-    const newCourse: MockCourseOffering = {
-      id: `course_${Date.now()}`,
-      course_code: courseCode.trim().toUpperCase(),
-      course_name: courseName.trim(),
-      department: selectedDept,
-      year: Number(selectedYear),
-      semester: Number(selectedSem),
-      credits: Number(credits),
-      status: 'Pending',
-      sections: sectionsInput.map(s => s.section)
-    };
+    try {
+      const res = await api.post("/api/exams/courses", {
+        course_code: courseCode.trim().toUpperCase(),
+        course_name: courseName.trim(),
+        department: selectedDept,
+        year: Number(selectedYear),
+        semester: Number(selectedSem),
+        credits: Number(credits),
+        course_type: courseType,
+        sections: sectionsInput
+      });
 
-    const updated = [...courses, newCourse];
-    setCourses(updated);
-    saveMockCourses(updated);
-    toast.success("New course offered successfully!");
-    
-    // Reset Form
-    setCourseCode("");
-    setCourseName("");
-    setSectionsInput([{ section: "A", dept: selectedDept, mentor_id: FACULTY_LIST.filter(f => f.department === selectedDept)[0]?.id || "f1" }]);
-  };
-
-  const handleDeleteCourse = (courseId: string) => {
-    const updated = courses.filter(c => c.id !== courseId);
-    setCourses(updated);
-    saveMockCourses(updated);
-    toast.success("Subject deleted successfully!");
-  };
-
-  const handleSubmitApproval = () => {
-    const updated = courses.map(c => {
-      if (c.department === selectedDept && c.year === Number(selectedYear) && c.semester === Number(selectedSem)) {
-        return { ...c, status: 'Pending' as const }; // Re-submit
+      if (res.status === 201) {
+        toast.success("New course offered successfully!");
+        loadCourses();
+        
+        // Reset Form
+        setCourseCode("");
+        setCourseName("");
+        setSectionsInput([{ section: "A", dept: selectedDept, mentor_id: facultyList.filter(f => f.department === normalizeDept(selectedDept))[0]?.id || "f1" }]);
+      } else {
+        toast.error(res.data?.error || "Failed to offer course.");
       }
-      return c;
-    });
-    setCourses(updated);
-    saveMockCourses(updated);
-    toast.success("Courses submitted to Officer successfully!");
+    } catch (err: any) {
+      const errMsg = err.response?.data?.error || "Failed to offer course.";
+      toast.error(errMsg);
+    }
+  };
+
+  const handleDeleteCourse = async (courseId: string) => {
+    try {
+      const res = await api.delete(`/api/exams/courses/${courseId}`);
+      if (res.status === 200) {
+        toast.success("Subject deleted successfully!");
+        loadCourses();
+      } else {
+        toast.error("Failed to delete course.");
+      }
+    } catch (err) {
+      toast.error("Failed to delete course.");
+    }
+  };
+
+  const handleSubmitApproval = async () => {
+    if (filteredCourses.length === 0) {
+      toast.error("Please offer at least one subject before submitting.");
+      return;
+    }
+
+    try {
+      const res = await api.post("/api/exams/courses/submit", {
+        department: selectedDept,
+        semester: Number(selectedSem)
+      });
+      if (res.status === 200) {
+        toast.success("Semester subjects submitted to Officer successfully!");
+        await loadCourses();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "Failed to submit subjects for approval.");
+    }
   };
 
   return (
@@ -297,10 +360,10 @@ function CourseEnrollPage() {
               <div className="flex items-center gap-2">
                 <BarChart2 className="size-5 text-indigo-600" />
                 <h3 className="font-bold text-xs uppercase tracking-wider text-slate-800">
-                  Department wise Course Offerings & Enrollments Comparison
+                  Semester wise Course Offerings & Enrollments Comparison ({selectedDept})
                 </h3>
               </div>
-              <Badge variant="secondary" className="text-[10px] font-bold">Branch Comparison</Badge>
+              <Badge variant="secondary" className="text-[10px] font-bold">Semester Comparison</Badge>
             </div>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -371,23 +434,42 @@ function CourseEnrollPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl border text-xs font-bold bg-white shadow-xs">
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground text-[10px] font-black uppercase">Cohort Status:</span>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 font-black">
-                Drafting (Pending Submission)
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black ${
+                cohortStatus === "Approved"
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                  : cohortStatus === "Pending"
+                  ? "bg-amber-50 text-amber-700 border border-amber-100"
+                  : "bg-slate-100 text-slate-700"
+              }`}>
+                {cohortStatus === "Approved"
+                  ? "Approved & Published"
+                  : cohortStatus === "Pending"
+                  ? "Pending Officer Approval"
+                  : "Drafting (Pending Submission)"}
               </span>
             </div>
 
             <button
               onClick={handleSubmitApproval}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-all cursor-pointer shadow-md font-black uppercase text-[10px] tracking-wider"
+              disabled={isCohortFrozen || filteredCourses.length === 0}
+              className={`px-4 py-2 rounded-xl transition-all font-black uppercase text-[10px] tracking-wider shadow-md ${
+                isCohortFrozen || filteredCourses.length === 0
+                  ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                  : "bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
+              }`}
             >
-              Submit Semester Subjects for Approval
+              {cohortStatus === "Draft"
+                ? "Submit Semester Subjects for Approval"
+                : cohortStatus === "Pending"
+                ? "Submitted (Pending Officer Approval)"
+                : "Approved & Published"}
             </button>
           </div>
 
           {/* Main Split Grid */}
           <div className="grid lg:grid-cols-3 gap-6 items-start">
             {/* Offered Courses Catalog */}
-            <div className={showAddForm ? "lg:col-span-2" : "lg:col-span-3"}>
+            <div className={showAddForm && !isCohortFrozen ? "lg:col-span-2" : "lg:col-span-3"}>
               <Card className="p-5 border border-slate-100 bg-white shadow-xs rounded-2xl">
                 <div className="flex items-center justify-between gap-4 mb-4 border-b pb-3">
                   <div className="flex items-center gap-2">
@@ -397,12 +479,14 @@ function CourseEnrollPage() {
                     </h3>
                   </div>
 
-                  <button
-                    onClick={() => setShowAddForm(prev => !prev)}
-                    className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all flex items-center gap-1 cursor-pointer"
-                  >
-                    <PlusCircle className="size-4" /> {showAddForm ? "Hide Form" : "Add Subject"}
-                  </button>
+                  {!isCohortFrozen && (
+                    <button
+                      onClick={() => setShowAddForm(prev => !prev)}
+                      className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      <PlusCircle className="size-4" /> {showAddForm ? "Hide Form" : "Add Subject"}
+                    </button>
+                  )}
                 </div>
 
                 {filteredCourses.length === 0 ? (
@@ -434,31 +518,38 @@ function CourseEnrollPage() {
                             <td className="px-4 py-3 font-bold text-slate-800">{c.course_name}</td>
                             <td className="px-4 py-3 text-slate-500 font-semibold">
                               <div className="flex flex-col gap-0.5">
-                                {c.sections.map(s => {
-                                  const mentor = FACULTY_LIST.find(f => f.department === selectedDept);
-                                  return (
-                                    <div key={s} className="text-[11px]">
-                                      Sec {s}: <span className="font-black text-slate-800">{mentor?.name || "Dr. Ravi Kumar"}</span>
-                                    </div>
-                                  );
-                                })}
+                                {Array.isArray(c.sections) ? c.sections.map((s: any) => (
+                                  <div key={s.section} className="text-[11px]">
+                                    Sec {s.section}: <span className="font-black text-slate-800">{s.mentor_name}</span>
+                                  </div>
+                                )) : null}
                               </div>
                             </td>
                             <td className="px-4 py-3 text-slate-400 font-semibold">{c.course_type || "Integrated Subject"}</td>
                             <td className="px-4 py-3 text-center font-bold text-slate-900">{c.credits}.0</td>
                             <td className="px-4 py-3 text-center">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-100">
-                                {c.status === "Approved" ? 25 : 0}
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-slate-100 text-slate-700 border border-slate-200">
+                                {c.enrolledCount || 0}
                               </span>
                             </td>
                             <td className="px-4 py-3 text-right">
-                              <button
-                                onClick={() => handleDeleteCourse(c.id)}
-                                className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
-                                title="Delete Subject"
-                              >
-                                <Trash2 className="size-4" />
-                              </button>
+                              {isCohortFrozen ? (
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black border ${
+                                  c.status === "Approved"
+                                    ? "bg-emerald-50 text-emerald-800 border-emerald-100"
+                                    : "bg-amber-50 text-amber-850 border-amber-100"
+                                }`}>
+                                  {c.status}
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => handleDeleteCourse(c.id)}
+                                  className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
+                                  title="Delete Subject"
+                                >
+                                  <Trash2 className="size-4" />
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -470,7 +561,7 @@ function CourseEnrollPage() {
             </div>
 
             {/* Offer New Course Form */}
-            {showAddForm && (
+            {showAddForm && !isCohortFrozen && (
               <div className="lg:col-span-1">
                 <Card className="p-5 border border-slate-100 bg-white shadow-xs rounded-2xl space-y-4">
                   <div className="flex items-center gap-1.5 border-b pb-2">
@@ -506,8 +597,17 @@ function CourseEnrollPage() {
                         placeholder="e.g. CS302"
                         value={courseCode}
                         onChange={(e) => setCourseCode(e.target.value)}
-                        className="h-9 rounded-xl font-mono"
+                        className={`h-9 rounded-xl font-mono ${
+                          courses.some(c => c.course_code.toUpperCase() === courseCode.trim().toUpperCase())
+                            ? "border-rose-500 text-rose-600 focus-visible:ring-rose-500"
+                            : ""
+                        }`}
                       />
+                      {courseCode.trim() !== "" && courses.some(c => c.course_code.toUpperCase() === courseCode.trim().toUpperCase()) && (
+                        <p className="text-[10px] text-rose-500 font-extrabold mt-1.5 flex items-center gap-1 animate-pulse">
+                          ⚠️ This course code is already offered!
+                        </p>
+                      )}
                     </div>
 
                     <div>
@@ -584,9 +684,13 @@ function CourseEnrollPage() {
                             value={row.mentor_id}
                             onChange={(e) => handleSectionChange(idx, "mentor_id", e.target.value)}
                           >
-                            {FACULTY_LIST.map(f => (
-                              <option key={f.id} value={f.id}>{f.name}</option>
-                            ))}
+                            {(() => {
+                              const filtered = facultyList.filter((f: any) => f.department === normalizeDept(row.dept));
+                              const listToMap = filtered.length > 0 ? filtered : facultyList;
+                              return listToMap.map((f: any) => (
+                                <option key={f.id} value={f.id}>{f.name}</option>
+                              ));
+                            })()}
                           </select>
                           {sectionsInput.length > 1 && (
                             <button
@@ -603,7 +707,12 @@ function CourseEnrollPage() {
 
                     <button
                       type="submit"
-                      className="w-full mt-4 bg-indigo-600 text-white rounded-xl py-2.5 font-black text-xs hover:bg-indigo-700 active:scale-95 transition-all cursor-pointer shadow-md uppercase tracking-wider"
+                      disabled={courseCode.trim() !== "" && courses.some(c => c.course_code.toUpperCase() === courseCode.trim().toUpperCase())}
+                      className={`w-full mt-4 rounded-xl py-2.5 font-black text-xs transition-all uppercase tracking-wider shadow-md ${
+                        courseCode.trim() !== "" && courses.some(c => c.course_code.toUpperCase() === courseCode.trim().toUpperCase())
+                          ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                          : "bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 cursor-pointer"
+                      }`}
                     >
                       Offer Subject
                     </button>

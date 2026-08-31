@@ -34,6 +34,7 @@ interface CourseRegistrationProps {
 }
 
 export function CourseRegistration({
+  profile,
   courses,
   courseRegStatus,
   selectedYear,
@@ -41,10 +42,16 @@ export function CourseRegistration({
   onYearChange,
   onSemesterChange,
   onToggleRegister,
+  onOpenConfirmModal,
   onCompleteCourseRegistration,
   onNavigateToExamReg,
 }: CourseRegistrationProps) {
   const isCompleted = courseRegStatus === "Completed";
+  const currentSemester = profile.semester || 1;
+  const isPreviousSem = selectedSemester < currentSemester;
+  const isFutureSem = selectedSemester > currentSemester;
+  const isReadOnly = isCompleted || isPreviousSem || isFutureSem;
+
   const availableSemesters = YEAR_TO_SEMESTERS_MAP[selectedYear] || [5, 6];
 
   // Dynamically filter courses for selected semester
@@ -53,12 +60,10 @@ export function CourseRegistration({
   return (
     <div className="space-y-6">
 
-
-
-      {/* TWO COLUMN LAYOUT (EXACT MATCH WITH SCREENSHOT) */}
+      {/* TWO COLUMN LAYOUT */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        {/* LEFT COLUMN: ACADEMIC FILTERS (3 COLUMNS) */}
+        {/* LEFT COLUMN: ACADEMIC FILTERS (4 COLUMNS) */}
         <div className="lg:col-span-4 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm space-y-5">
           <h3 className="text-sm font-bold text-slate-900 dark:text-white">Academic Filters</h3>
 
@@ -69,7 +74,7 @@ export function CourseRegistration({
               <select
                 value={selectedYear}
                 onChange={(e) => onYearChange(e.target.value as AcademicYearOption)}
-                className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-[#0b193c]"
+                className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
               >
                 <option value="1st Year">1st Year</option>
                 <option value="2nd Year">2nd Year</option>
@@ -84,7 +89,7 @@ export function CourseRegistration({
               <select
                 value={selectedSemester}
                 onChange={(e) => onSemesterChange(Number(e.target.value))}
-                className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-[#0b193c]"
+                className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
               >
                 {availableSemesters.map((sem) => (
                   <option key={sem} value={sem}>
@@ -117,9 +122,34 @@ export function CourseRegistration({
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Offered Courses Catalog</h3>
             </div>
             <span className="px-3 py-1 text-xs font-semibold rounded-full bg-[#0b193c]/10 text-[#0b193c] dark:text-blue-400 border border-[#0b193c]/20">
-              CSE - Sem {selectedSemester}
+              {profile.department || "CSE"} - Sem {selectedSemester}
             </span>
           </div>
+
+          {/* SEMESTER WARNING BANNERS */}
+          {isPreviousSem && (
+            <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 text-xs flex items-center gap-2.5 text-emerald-800 dark:text-emerald-300">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+              <div>
+                <p className="font-bold">Semester Completed (Academic History)</p>
+                <p className="text-[11px] text-emerald-700/90 dark:text-emerald-400/90 leading-tight">
+                  You have successfully completed this semester. Registrations are finalized and archived.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {isFutureSem && (
+            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800/50 text-xs flex items-center gap-2.5 text-slate-700 dark:text-slate-350">
+              <Clock className="h-4 w-4 text-slate-500 shrink-0" />
+              <div>
+                <p className="font-bold">Registration Closed</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+                  This is a future semester. Course registration is not open yet.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* COURSES CARD GRID */}
           {filteredCourses.length === 0 ? (
@@ -127,38 +157,56 @@ export function CourseRegistration({
               No courses offered for Semester {selectedSemester} yet.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredCourses.map((c) => (
-                <div
-                  key={c.id}
-                  className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-3"
-                >
-                  <div>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="font-mono font-bold text-[#0b193c] dark:text-blue-400">{c.code}</span>
-                      <span className="text-[11px] text-slate-400 font-medium">{c.category === "Core" ? "Normal Subject" : c.category}</span>
-                    </div>
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">{c.name}</h4>
-                    
-                    <div className="mt-2 space-y-1 text-xs text-slate-500">
-                      <p className="font-mono text-[11px]">Credits: {c.credits.toFixed(1)} &bull; Semester: {c.semester}</p>
-                      <p className="text-[11px]">Mentor: <span className="text-[#0b193c] dark:text-blue-400 font-semibold">{c.faculty}</span></p>
-                    </div>
-                  </div>
-
-                  <Button
-                    disabled={c.isRegistered}
-                    onClick={() => !c.isRegistered && onToggleRegister(c.id)}
-                    className={`w-full h-9 text-xs font-bold rounded-xl transition-all shadow-sm ${
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredCourses.map((c) => (
+                  <div
+                    key={c.id}
+                    onClick={() => !isReadOnly && onToggleRegister(c.id)}
+                    className={`p-4 rounded-2xl border bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-3 ${
+                      !isReadOnly ? "cursor-pointer" : ""
+                    } ${
                       c.isRegistered
-                        ? "bg-emerald-600 text-white cursor-not-allowed opacity-100"
-                        : "bg-[#0b193c] hover:bg-[#0b193c]/90 text-white"
+                        ? "border-emerald-500 bg-emerald-50/10 dark:bg-emerald-950/20"
+                        : "border-slate-100 dark:border-slate-800"
                     }`}
                   >
-                    {c.isRegistered ? "Course Registered ✓" : "Register Course"}
+                    <div>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="font-mono font-bold text-[#0b193c] dark:text-blue-400">{c.code}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-slate-400 font-medium">{c.category === "Core" ? "Normal Subject" : c.category}</span>
+                          <input
+                            type="checkbox"
+                            checked={c.isRegistered}
+                            disabled={isReadOnly}
+                            onChange={() => {}} // Card click handles changes
+                            className="size-4 rounded border-slate-350 accent-emerald-600 cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">{c.name}</h4>
+                      
+                      <div className="mt-2 space-y-1 text-xs text-slate-500">
+                        <p className="font-mono text-[11px]">Credits: {c.credits.toFixed(1)} &bull; Semester: {c.semester}</p>
+                        <p className="text-[11px]">Mentor: <span className="text-[#0b193c] dark:text-blue-400 font-semibold">{c.faculty}</span></p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Main Submit Button */}
+              {!isReadOnly && filteredCourses.some((c) => c.isRegistered) && (
+                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                  <Button
+                    onClick={onOpenConfirmModal}
+                    className="h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-6 rounded-xl flex items-center gap-1.5 shadow-md cursor-pointer"
+                  >
+                    Confirm & Submit Registered Courses <ArrowRight className="size-4" />
                   </Button>
                 </div>
-              ))}
+              )}
             </div>
           )}
 

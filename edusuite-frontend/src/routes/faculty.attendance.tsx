@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRole } from "@/context/role-context";
 import {
   FACULTY_DASHBOARD_DATA_BY_DEPT,
   type FacultyDashboardData,
   type TimetableSlot,
 } from "@/data/faculty-mock-data";
+import { getFacultyAssignedSections } from "@/lib/mock-examcell-state";
 
 // Subcomponents imports
 import { AttendanceHeader } from "@/components/dashboard/attendance/attendance-header";
@@ -36,42 +37,60 @@ function FacultyAttendancePage() {
   const { profile } = useRole();
   const deptCode = profile.department || "CSE";
 
-  // Retrieve mock data dynamically based on active department
-  const dashboardData = (FACULTY_DASHBOARD_DATA_BY_DEPT[deptCode] || FACULTY_DASHBOARD_DATA_BY_DEPT["CSE"]) as FacultyDashboardData;
-  const originalStats = dashboardData.attendanceData;
-
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("today");
 
-  // Local state for today's classes
-  const [todayClasses, setTodayClasses] = useState<TimetableSlot[]>([]);
+  // Dynamically resolve assigned sections appointed by Examcell for logged-in faculty
+  const assignedSections = useMemo(() => {
+    return getFacultyAssignedSections(profile.name || profile.personaName || "Amit Rathore");
+  }, [profile.name, profile.personaName]);
 
-  // Take Attendance Screen State
+  const dynamicTimetable: TimetableSlot[] = useMemo(() => {
+    return assignedSections.map((sec, idx) => ({
+      time: idx === 0 ? "09:00 - 10:00" : idx === 1 ? "10:15 - 11:15" : idx === 2 ? "11:30 - 12:30" : "14:00 - 15:00",
+      subject: `${sec.subjectCode} - ${sec.subjectName}`,
+      section: `${sec.department} Sec ${sec.section}`,
+      room: `Block A - Room ${101 + idx}`,
+      status: idx === 0 ? ("Completed" as const) : idx === 1 ? ("Ongoing" as const) : ("Upcoming" as const)
+    }));
+  }, [assignedSections]);
+
+  const attendanceModuleData = useMemo(() => {
+    return {
+      stats: {
+        conducted: Math.max(12, assignedSections.length * 12),
+        pending: 2,
+        presentToday: Math.max(24, assignedSections.length * 20),
+        absentToday: 4,
+        average: 89,
+        leavesPending: 3
+      }
+    };
+  }, [assignedSections]);
+
+  const [todayClasses, setTodayClasses] = useState<TimetableSlot[]>([]);
   const [activeFormSlot, setActiveFormSlot] = useState<TimetableSlot | null>(null);
 
-  // Search and filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("ALL");
   const [selectedSection, setSelectedSection] = useState("ALL");
 
-  // Load today's classes on mounting
   useEffect(() => {
-    setTodayClasses(dashboardData.timetable || []);
-    // Reset filters
+    setTodayClasses(dynamicTimetable);
     setSearchQuery("");
     setSelectedSubject("ALL");
     setSelectedSection("ALL");
     setActiveFormSlot(null);
-  }, [deptCode, dashboardData]);
+  }, [dynamicTimetable]);
 
   const handleRefresh = () => {
     setLoading(true);
     toast.success("Synchronizing attendance logs...", {
-      description: "Fetching latest leaves and registry data.",
+      description: "Fetching latest appointed section registers.",
     });
     setTimeout(() => {
       setLoading(false);
-    }, 800);
+    }, 600);
   };
 
   const handleTakeAttendance = (slot: TimetableSlot) => {
@@ -86,7 +105,6 @@ function FacultyAttendancePage() {
 
   const handleSubmitAttendance = (presentRolls: string[], absentRolls: string[]) => {
     if (activeFormSlot) {
-      // Mark as completed locally
       setTodayClasses((prev) =>
         prev.map((c) =>
           c.time === activeFormSlot.time && c.subject === activeFormSlot.subject
@@ -94,114 +112,83 @@ function FacultyAttendancePage() {
             : c
         )
       );
+      toast.success(`Attendance submitted for ${activeFormSlot.subject} (${activeFormSlot.section})`);
     }
     setActiveFormSlot(null);
   };
 
-  // Filter students locally
-  const filteredStudents = originalStats.students.filter((stud) => {
-    const matchesSearch =
-      stud.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      stud.rollNumber.toLowerCase().includes(searchQuery.toLowerCase());
-      
-    // Roll number contains subject prefix (visual filter simulation)
-    const matchesSection = selectedSection === "ALL" || stud.rollNumber.includes(selectedSection.replace("-", ""));
-
-    return matchesSearch && matchesSection;
-  });
-
-  const uniqueSubjects = Array.from(new Set(originalStats.history.map((h) => h.subject)));
-  const uniqueSections = Array.from(new Set(originalStats.history.map((h) => h.section)));
-
   return (
     <div className="space-y-6">
-      {/* 1. Header Toolbar */}
+      {/* 1. Page Header */}
       <AttendanceHeader
-        academicYear={dashboardData.academicYear}
-        semester={dashboardData.semester}
-        currentDate="01 August 2026"
+        departmentName={deptCode}
+        academicYear="2024-25"
+        semester="Sem 1 / Sem 5"
       />
 
-      {/* 2. Statistics Cockpit */}
-      <StatisticsCards attendanceData={originalStats} />
+      {/* 2. Global Load Stats */}
+      <StatisticsCards attendanceData={attendanceModuleData} />
 
-      {/* 3. Sliding Tabs Control */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
-        <TabsList className="grid w-full grid-cols-3 max-w-[400px] h-auto gap-1 bg-muted p-1 rounded-2xl">
-          <TabsTrigger value="today" className="rounded-xl text-xs py-2 cursor-pointer">Daily Log</TabsTrigger>
-          <TabsTrigger value="register" className="rounded-xl text-xs py-2 cursor-pointer">Register Grid</TabsTrigger>
-          <TabsTrigger value="analytics" className="rounded-xl text-xs py-2 cursor-pointer">Analytics</TabsTrigger>
-        </TabsList>
+      {/* 3. Search and filter tools */}
+      <SearchFilterBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        selectedSubject={selectedSubject}
+        onSubjectChange={setSelectedSubject}
+        selectedSection={selectedSection}
+        onSectionChange={setSelectedSection}
+        onRefresh={handleRefresh}
+        subjectsList={todayClasses.map(c => c.subject)}
+        sectionsList={todayClasses.map(c => c.section)}
+      />
 
-        <div className="focus-visible:outline-none">
-          {/* TAB 1: Daily Log & take attendance */}
-          <TabsContent value="today" className="space-y-6 focus-visible:outline-none">
-            {activeFormSlot ? (
-              <AttendanceForm
-                slot={activeFormSlot}
-                students={originalStats.students}
-                onSubmit={handleSubmitAttendance}
-                onCancel={() => setActiveFormSlot(null)}
-              />
-            ) : (
-              <>
-                <TodayClasses
-                  classes={todayClasses}
-                  onTakeAttendance={handleTakeAttendance}
-                  onViewRegister={handleViewRegister}
-                />
-
-                <SearchFilterBar
-                  searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
-                  selectedSubject={selectedSubject}
-                  onSubjectChange={setSelectedSubject}
-                  selectedSection={selectedSection}
-                  onSectionChange={setSelectedSection}
-                  uniqueSubjects={uniqueSubjects}
-                  uniqueSections={uniqueSections}
-                  onRefresh={handleRefresh}
-                />
-
-                {loading ? (
-                  <SkeletonLoader />
-                ) : (
-                  <StudentAttendanceTable students={filteredStudents} />
-                )}
-              </>
-            )}
-          </TabsContent>
-
-          {/* TAB 2: Register view & Calendar */}
-          <TabsContent value="register" className="space-y-6 focus-visible:outline-none">
-            <div className="grid gap-6 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                <AttendanceRegister students={originalStats.students} />
-              </div>
-              <div>
-                <AttendanceCalendar />
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* TAB 3: Analytics & approvals */}
-          <TabsContent value="analytics" className="space-y-6 focus-visible:outline-none">
-            <div className="grid gap-6 lg:grid-cols-3">
-              <div className="lg:col-span-2 space-y-6">
-                <AttendanceAnalytics />
-                <div className="grid gap-6 sm:grid-cols-2">
-                  <LowAttendanceAlerts students={originalStats.students} />
-                  <AttendanceHistory history={originalStats.history} />
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                <LeaveRequestPanel initialRequests={originalStats.leaveRequests} />
-                <QuickActions />
-              </div>
-            </div>
-          </TabsContent>
+      {/* 4. Tab Container */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-border pb-2">
+          <TabsList className="bg-card border border-border/60 p-1 rounded-xl">
+            <TabsTrigger value="today" className="text-xs font-bold rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white">
+              Today's Schedule & Attendance ({todayClasses.length})
+            </TabsTrigger>
+            <TabsTrigger value="register" className="text-xs font-bold rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white">
+              Student Attendance Register
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="text-xs font-bold rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white">
+              Attendance Analytics
+            </TabsTrigger>
+          </TabsList>
         </div>
+
+        {/* Tab 1: Today's Classes */}
+        <TabsContent value="today" className="space-y-6">
+          {activeFormSlot ? (
+            <AttendanceForm
+              slot={activeFormSlot}
+              onCancel={() => setActiveFormSlot(null)}
+              onSubmit={handleSubmitAttendance}
+            />
+          ) : loading ? (
+            <SkeletonLoader />
+          ) : (
+            <TodayClasses
+              classes={todayClasses}
+              onTakeAttendance={handleTakeAttendance}
+              onViewRegister={handleViewRegister}
+            />
+          )}
+        </TabsContent>
+
+        {/* Tab 2: Attendance Register */}
+        <TabsContent value="register" className="space-y-6">
+          <AttendanceRegister
+            subject={selectedSubject}
+            section={selectedSection}
+          />
+        </TabsContent>
+
+        {/* Tab 3: Attendance Analytics */}
+        <TabsContent value="analytics" className="space-y-6">
+          <AttendanceAnalytics />
+        </TabsContent>
       </Tabs>
     </div>
   );

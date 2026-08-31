@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import api from "@/lib/api";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/student/courses")({
@@ -112,8 +113,65 @@ function StudentCoursesPage() {
   const [activeTab, setActiveTab] = useState<"active" | "syllabus" | "regulations">("active");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [coursesData, setCoursesData] = useState<any[]>([]);
+  const [studentProfile, setStudentProfile] = useState<any>(null);
 
-  const filteredCourses = MOCK_COURSES_DATA.filter(
+  const normalizeDept = (dept: string) => {
+    if (dept === "AIML") return "AI&ML";
+    if (dept === "AIDS") return "AI&DS";
+    if (dept === "MECH") return "MECHANICAL";
+    return dept;
+  };
+
+  useEffect(() => {
+    const fetchStudentData = async () => {
+      try {
+        const profileRes = await api.get("/api/auth/profile");
+        if (profileRes.data) {
+          setStudentProfile(profileRes.data);
+          const deptVal = normalizeDept(profileRes.data.department || "CSE");
+          const semVal = profileRes.data.semester || 4;
+
+          const coursesRes = await api.get(`/api/exams/courses?department=${deptVal}&semester=${semVal}&status=Approved`);
+          if (coursesRes.data && coursesRes.data.length > 0) {
+            // Map backend courses list to the expected Course interface
+            const mapped = coursesRes.data.map((c: any, index: number) => {
+              const facultyName = Array.isArray(c.sections) && c.sections.length > 0
+                ? c.sections.map((s: any) => `${s.section}: ${s.mentor_name}`).join(", ")
+                : "Dr. Ravi Kumar";
+
+              return {
+                code: c.course_code,
+                name: c.course_name,
+                credits: c.credits,
+                type: "Core",
+                faculty: facultyName,
+                progress: 60 + (index * 7) % 30, // Dynamic mock progress
+                syllabusCount: 5,
+                schedule: "Mon, Wed, Fri 09:00 AM",
+                description: `Core subject offered this semester for B.Tech ${deptVal}.`,
+                units: [
+                  { number: 1, title: "Foundations & Core Principles", topics: "Introduction and fundamental algorithms" },
+                  { number: 2, title: "System Architecture", topics: "Structural designs and configurations" },
+                  { number: 3, title: "Operational Execution", topics: "Optimizations and processes" }
+                ]
+              };
+            });
+            setCoursesData(mapped);
+          } else {
+            // No approved subjects offered yet for this cohort
+            setCoursesData([]);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load student courses dynamically", err);
+        setCoursesData([]);
+      }
+    };
+    fetchStudentData();
+  }, []);
+
+  const filteredCourses = coursesData.filter(
     (c) =>
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -131,7 +189,7 @@ function StudentCoursesPage() {
           <div>
             <h1 className="text-xl sm:text-2xl font-black tracking-tight">Courses & Curriculum</h1>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Semester IV • B.Tech Computer Science & Engineering
+              Semester {studentProfile?.semester || "IV"} • B.Tech {studentProfile?.department || "Computer Science & Engineering"}
             </p>
           </div>
         </div>
@@ -188,64 +246,76 @@ function StudentCoursesPage() {
 
       {/* TAB CONTENTS */}
       {activeTab === "active" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-          {filteredCourses.map((course) => (
-            <div
-              key={course.code}
-              className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="font-mono font-bold text-indigo-600 text-[11px]">
-                      {course.code}
-                    </Badge>
-                    <Badge className="bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 text-[10px]">
-                      {course.type} • {course.credits} Credits
-                    </Badge>
-                  </div>
-                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white mt-1">
-                    {course.name}
-                  </h3>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    toast.success(`Downloading PDF Syllabus for ${course.code}...`);
-                  }}
-                  variant="outline"
-                  className="h-8 rounded-xl text-xs border-slate-200 dark:border-slate-700"
-                >
-                  <Download className="size-3.5 mr-1" /> Syllabus
-                </Button>
-              </div>
-
-              <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                {course.description}
-              </p>
-
-              <div className="space-y-1.5 pt-2">
-                <div className="flex justify-between text-xs font-semibold">
-                  <span className="text-slate-500">Syllabus Completion</span>
-                  <span className="text-indigo-600 dark:text-indigo-400 font-bold">{course.progress}%</span>
-                </div>
-                <Progress value={course.progress} className="h-2" />
-              </div>
-
-              <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <span>Faculty: <strong className="text-slate-900 dark:text-white">{course.faculty}</strong></span>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setSelectedCourse(course)}
-                  className="h-7 text-xs font-bold text-indigo-600 hover:text-indigo-700"
-                >
-                  View Details <ChevronRight className="size-3.5 ml-1" />
-                </Button>
-              </div>
+        filteredCourses.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center flex flex-col items-center justify-center min-h-[300px] shadow-2xs">
+            <div className="size-12 rounded-full bg-slate-50 dark:bg-slate-800 text-slate-400 flex items-center justify-center mb-4">
+              <BookOpen className="size-6 text-slate-400" />
             </div>
-          ))}
-        </div>
+            <h3 className="font-display text-sm font-black text-slate-850 dark:text-slate-200">No Approved Offered Subjects</h3>
+            <p className="text-xs text-slate-500 mt-2 max-w-sm leading-relaxed font-bold">
+              There are no approved offered subjects for your branch & semester cohort yet. Please wait for the Exam Officer to verify and publish them.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+            {filteredCourses.map((course) => (
+              <div
+                key={course.code}
+                className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="font-mono font-bold text-indigo-600 text-[11px]">
+                        {course.code}
+                      </Badge>
+                      <Badge className="bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 text-[10px]">
+                        {course.type} • {course.credits} Credits
+                      </Badge>
+                    </div>
+                    <h3 className="text-base font-extrabold text-slate-900 dark:text-white mt-1">
+                      {course.name}
+                    </h3>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      toast.success(`Downloading PDF Syllabus for ${course.code}...`);
+                    }}
+                    variant="outline"
+                    className="h-8 rounded-xl text-xs border-slate-200 dark:border-slate-700"
+                  >
+                    <Download className="size-3.5 mr-1" /> Syllabus
+                  </Button>
+                </div>
+
+                <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                  {course.description}
+                </p>
+
+                <div className="space-y-1.5 pt-2">
+                  <div className="flex justify-between text-xs font-semibold">
+                    <span className="text-slate-500">Syllabus Completion</span>
+                    <span className="text-indigo-600 dark:text-indigo-400 font-bold">{course.progress}%</span>
+                  </div>
+                  <Progress value={course.progress} className="h-2" />
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <span>Faculty: <strong className="text-slate-900 dark:text-white">{course.faculty}</strong></span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setSelectedCourse(course)}
+                    className="h-7 text-xs font-bold text-indigo-600 hover:text-indigo-700"
+                  >
+                    View Details <ChevronRight className="size-3.5 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
       )}
 
       {activeTab === "syllabus" && (

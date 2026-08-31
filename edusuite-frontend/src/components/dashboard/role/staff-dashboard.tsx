@@ -36,8 +36,10 @@ import {
   FACULTY_DASHBOARD_DATA_BY_DEPT,
   type FacultyDashboardData,
 } from "@/data/faculty-mock-data";
+import { getFacultyAssignedSections } from "@/lib/mock-examcell-state";
 import { toast } from "sonner";
 import { FacultyModuleView } from "@/modules/faculty";
+import { useMemo } from "react";
 
 export function StaffDashboard() {
   const { hasFlag, profile } = useRole();
@@ -47,6 +49,42 @@ export function StaffDashboard() {
   // Dynamic department-aware data
   const dashboardData = (FACULTY_DASHBOARD_DATA_BY_DEPT[deptCode] || FACULTY_DASHBOARD_DATA_BY_DEPT["CSE"]) as FacultyDashboardData;
   
+  // Dynamically resolve assigned teaching sections appointed by Examcell for logged-in faculty
+  const assignedSections = useMemo(() => {
+    return getFacultyAssignedSections(profile.name || profile.personaName || "Amit Rathore");
+  }, [profile.name, profile.personaName]);
+
+  const userProfileRoll = useMemo(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("cms_user");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          return parsed.rollNumber || parsed.roll_number || parsed.employeeId || parsed.empId;
+        }
+      } catch (e) {}
+    }
+    return null;
+  }, []);
+
+  const activeEmpId = (profile as any).rollNumber || userProfileRoll || "FAC-EC-6";
+
+  const dynamicTimetable = useMemo(() => {
+    if (assignedSections.length === 0) return dashboardData.timetable;
+    return assignedSections.map((sec, idx) => ({
+      time: idx === 0 ? "09:00 - 10:00 AM" : idx === 1 ? "10:15 - 11:15 AM" : idx === 2 ? "11:30 - 12:30 PM" : "02:00 - 03:00 PM",
+      subject: `${sec.subjectCode}: ${sec.subjectName}`,
+      section: `${sec.department} Sec ${sec.section}`,
+      room: `Block A - Room ${101 + idx}`,
+      status: idx === 0 ? ("Completed" as const) : idx === 1 ? ("Ongoing" as const) : ("Upcoming" as const)
+    }));
+  }, [assignedSections, dashboardData.timetable]);
+
+  const todaysClassesCount = assignedSections.length > 0 ? assignedSections.length : dashboardData.stats.todaysClasses;
+  const totalStudentsCount = assignedSections.length > 0
+    ? assignedSections.reduce((sum, s) => sum + (s.studentCount || 6), 0)
+    : dashboardData.stats.totalStudents;
+
   // Format current greeting based on time of day
   const getGreeting = () => {
     const hrs = new Date().getHours();
@@ -71,44 +109,38 @@ export function StaffDashboard() {
   return (
     <div className="space-y-6">
       {/* 1. WELCOME SECTION HERO CARD */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-700 p-6 md:p-8 text-white shadow-lg shadow-indigo-500/10">
-        <div className="absolute -right-10 -top-10 size-40 rounded-full bg-white/10 blur-2xl" />
-        <div className="absolute -left-10 -bottom-10 size-40 rounded-full bg-white/10 blur-2xl" />
-        
+      <div className="relative overflow-hidden rounded-3xl bg-slate-900 border border-slate-800 p-6 md:p-8 text-slate-50 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div className="space-y-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur-md">
-              <Activity className="size-3.5 animate-pulse" /> Active Session
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-800/80 border border-slate-700 px-3 py-1 text-xs font-medium text-slate-300">
+              <Activity className="size-3.5 text-emerald-400 animate-pulse" /> Active Session
             </span>
             <div>
-              <h2 className="font-display text-2xl font-extrabold md:text-3xl tracking-tight">
-                {getGreeting()}, {profile.personaName || dashboardData.facultyName}
+              <h2 className="font-display text-2xl font-extrabold md:text-3xl tracking-tight text-white">
+                {getGreeting()}, {profile.personaName || profile.name || dashboardData.facultyName}
               </h2>
-              <p className="mt-1 text-sm text-white/80 font-medium">
-                {deptName} &middot; ID: {dashboardData.employeeId}
+              <p className="mt-1 text-sm text-slate-400 font-medium">
+                {deptName} &middot; ID: {activeEmpId}
               </p>
             </div>
             
             <div className="flex flex-wrap gap-2 pt-1">
-              <Badge className="bg-white/15 hover:bg-white/20 text-white border-0 py-1 px-3 rounded-xl font-bold">
+              <Badge className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 py-1 px-3 rounded-xl font-bold">
                 {dashboardData.designation}
               </Badge>
-              <Badge className="bg-white/15 hover:bg-white/20 text-white border-0 py-1 px-3 rounded-xl font-bold">
-                Semester {dashboardData.semester}
-              </Badge>
-              <Badge className="bg-white/15 hover:bg-white/20 text-white border-0 py-1 px-3 rounded-xl font-bold">
+              <Badge className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 py-1 px-3 rounded-xl font-bold">
                 AY {dashboardData.academicYear}
               </Badge>
             </div>
           </div>
           
-          <div className="flex items-center gap-4 shrink-0 bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl p-4">
-            <div className="size-12 rounded-xl bg-white/10 text-white font-black text-lg grid place-items-center">
+          <div className="flex items-center gap-4 shrink-0 bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4">
+            <div className="size-12 rounded-xl bg-indigo-600 text-white font-black text-lg grid place-items-center">
               {profile.initials || "FC"}
             </div>
             <div>
-              <h4 className="text-xs uppercase font-extrabold tracking-wider text-white/60">Logged In As</h4>
-              <p className="text-sm font-black">{profile.label || "Faculty"}</p>
+              <h4 className="text-xs uppercase font-extrabold tracking-wider text-slate-400">Logged In As</h4>
+              <p className="text-sm font-black text-white">{profile.label || "Faculty"}</p>
             </div>
           </div>
         </div>
@@ -197,14 +229,14 @@ export function StaffDashboard() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
           <KpiCard
             label="Today's Classes"
-            value={String(dashboardData.stats.todaysClasses)}
+            value={String(todaysClassesCount)}
             icon={CalendarCheck}
             tone="info"
             className="hover:-translate-y-1 transition-all duration-300"
           />
           <KpiCard
             label="Total Students"
-            value={String(dashboardData.stats.totalStudents)}
+            value={String(totalStudentsCount)}
             icon={Users}
             className="hover:-translate-y-1 transition-all duration-300"
           />
@@ -260,7 +292,7 @@ export function StaffDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {dashboardData.timetable.map((slot, index) => (
+                  {dynamicTimetable.map((slot, index) => (
                     <TableRow key={index} className="hover:bg-muted/40">
                       <TableCell className="font-mono text-xs font-semibold flex items-center gap-1.5 text-muted-foreground">
                         <Clock className="size-3" /> {slot.time}
@@ -290,7 +322,7 @@ export function StaffDashboard() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {dashboardData.timetable.length === 0 && (
+                  {dynamicTimetable.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-xs text-muted-foreground py-6">
                         No classes scheduled for today.

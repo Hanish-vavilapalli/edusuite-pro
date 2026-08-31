@@ -260,7 +260,11 @@ import { Route as SuperAdminEmergencyRouteImport } from './routes/super-admin.em
 import { Route as SuperAdminEmergencyAlertsRouteImport } from './routes/super-admin.emergency-alerts'
 import { Route as SuperAdminFacultyRouteImport } from './routes/super-admin.faculty'
 import { Route as SuperAdminFacultyStatusRouteImport } from './routes/super-admin.faculty-status'
+<<<<<<< HEAD
 import { Route as SuperAdminPayrollRouteImport } from './routes/super-admin.payroll'
+=======
+import { Route as SuperAdminLmsRouteImport } from './routes/super-admin.lms'
+>>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
 import { Route as SuperAdminProfileRouteImport } from './routes/super-admin.profile'
 import { Route as SuperAdminSettingsRouteImport } from './routes/super-admin.settings'
 import { Route as SuperAdminStudentsRouteImport } from './routes/super-admin.students'
@@ -1932,9 +1936,15 @@ const SuperAdminFacultyStatusRoute = SuperAdminFacultyStatusRouteImport.update({
   path: '/faculty-status',
   getParentRoute: () => SuperAdminRoute,
 } as any)
+<<<<<<< HEAD
 const SuperAdminPayrollRoute = SuperAdminPayrollRouteImport.update({
   id: '/payroll',
   path: '/payroll',
+=======
+const SuperAdminLmsRoute = SuperAdminLmsRouteImport.update({
+  id: '/lms',
+  path: '/lms',
+>>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
   getParentRoute: () => SuperAdminRoute,
 } as any)
 const SuperAdminProfileRoute = SuperAdminProfileRouteImport.update({
@@ -4481,7 +4491,11 @@ export interface FileRoutesByFullPath {
   '/super-admin/emergency-alerts': typeof SuperAdminEmergencyAlertsRoute
   '/super-admin/faculty': typeof SuperAdminFacultyRoute
   '/super-admin/faculty-status': typeof SuperAdminFacultyStatusRoute
+<<<<<<< HEAD
   '/super-admin/payroll': typeof SuperAdminPayrollRoute
+=======
+  '/super-admin/lms': typeof SuperAdminLmsRoute
+>>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
   '/super-admin/profile': typeof SuperAdminProfileRoute
   '/super-admin/settings': typeof SuperAdminSettingsRoute
   '/super-admin/students': typeof SuperAdminStudentsRoute
@@ -5107,7 +5121,11 @@ export interface FileRoutesByTo {
   '/super-admin/emergency-alerts': typeof SuperAdminEmergencyAlertsRoute
   '/super-admin/faculty': typeof SuperAdminFacultyRoute
   '/super-admin/faculty-status': typeof SuperAdminFacultyStatusRoute
+<<<<<<< HEAD
   '/super-admin/payroll': typeof SuperAdminPayrollRoute
+=======
+  '/super-admin/lms': typeof SuperAdminLmsRoute
+>>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
   '/super-admin/profile': typeof SuperAdminProfileRoute
   '/super-admin/settings': typeof SuperAdminSettingsRoute
   '/super-admin/students': typeof SuperAdminStudentsRoute
@@ -5763,7 +5781,11 @@ export interface FileRoutesById {
   '/super-admin/emergency-alerts': typeof SuperAdminEmergencyAlertsRoute
   '/super-admin/faculty': typeof SuperAdminFacultyRoute
   '/super-admin/faculty-status': typeof SuperAdminFacultyStatusRoute
+<<<<<<< HEAD
   '/super-admin/payroll': typeof SuperAdminPayrollRoute
+=======
+  '/super-admin/lms': typeof SuperAdminLmsRoute
+>>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
   '/super-admin/profile': typeof SuperAdminProfileRoute
   '/super-admin/settings': typeof SuperAdminSettingsRoute
   '/super-admin/students': typeof SuperAdminStudentsRoute
@@ -6420,7 +6442,11 @@ export interface FileRouteTypes {
     | '/super-admin/emergency-alerts'
     | '/super-admin/faculty'
     | '/super-admin/faculty-status'
+<<<<<<< HEAD
     | '/super-admin/payroll'
+=======
+    | '/super-admin/lms'
+>>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
     | '/super-admin/profile'
     | '/super-admin/settings'
     | '/super-admin/students'
@@ -7046,7 +7072,11 @@ export interface FileRouteTypes {
     | '/super-admin/emergency-alerts'
     | '/super-admin/faculty'
     | '/super-admin/faculty-status'
+<<<<<<< HEAD
     | '/super-admin/payroll'
+=======
+    | '/super-admin/lms'
+>>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
     | '/super-admin/profile'
     | '/super-admin/settings'
     | '/super-admin/students'
@@ -7701,7 +7731,11 @@ export interface FileRouteTypes {
     | '/super-admin/emergency-alerts'
     | '/super-admin/faculty'
     | '/super-admin/faculty-status'
+<<<<<<< HEAD
     | '/super-admin/payroll'
+=======
+    | '/super-admin/lms'
+>>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
     | '/super-admin/profile'
     | '/super-admin/settings'
     | '/super-admin/students'
@@ -9950,11 +9984,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SuperAdminFacultyStatusRouteImport
       parentRoute: typeof SuperAdminRoute
     }
+<<<<<<< HEAD
     '/super-admin/payroll': {
       id: '/super-admin/payroll'
       path: '/payroll'
       fullPath: '/super-admin/payroll'
       preLoaderRoute: typeof SuperAdminPayrollRouteImport
+=======
+    '/super-admin/lms': {
+      id: '/super-admin/lms'
+      path: '/lms'
+      fullPath: '/super-admin/lms'
+      preLoaderRoute: typeof SuperAdminLmsRouteImport
+>>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
       parentRoute: typeof SuperAdminRoute
     }
     '/super-admin/profile': {
@@ -14315,7 +14357,11 @@ interface SuperAdminRouteChildren {
   SuperAdminEmergencyAlertsRoute: typeof SuperAdminEmergencyAlertsRoute
   SuperAdminFacultyRoute: typeof SuperAdminFacultyRoute
   SuperAdminFacultyStatusRoute: typeof SuperAdminFacultyStatusRoute
+<<<<<<< HEAD
   SuperAdminPayrollRoute: typeof SuperAdminPayrollRoute
+=======
+  SuperAdminLmsRoute: typeof SuperAdminLmsRoute
+>>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
   SuperAdminProfileRoute: typeof SuperAdminProfileRoute
   SuperAdminSettingsRoute: typeof SuperAdminSettingsRoute
   SuperAdminStudentsRoute: typeof SuperAdminStudentsRoute
@@ -14334,7 +14380,11 @@ const SuperAdminRouteChildren: SuperAdminRouteChildren = {
   SuperAdminEmergencyAlertsRoute: SuperAdminEmergencyAlertsRoute,
   SuperAdminFacultyRoute: SuperAdminFacultyRoute,
   SuperAdminFacultyStatusRoute: SuperAdminFacultyStatusRoute,
+<<<<<<< HEAD
   SuperAdminPayrollRoute: SuperAdminPayrollRoute,
+=======
+  SuperAdminLmsRoute: SuperAdminLmsRoute,
+>>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
   SuperAdminProfileRoute: SuperAdminProfileRoute,
   SuperAdminSettingsRoute: SuperAdminSettingsRoute,
   SuperAdminStudentsRoute: SuperAdminStudentsRoute,

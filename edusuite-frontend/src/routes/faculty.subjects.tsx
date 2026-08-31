@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRole } from "@/context/role-context";
 import {
   FACULTY_DASHBOARD_DATA_BY_DEPT,
@@ -7,6 +7,7 @@ import {
   type SubjectItem,
   DEPARTMENT_NAMES,
 } from "@/data/faculty-mock-data";
+import { getFacultyAssignedSections } from "@/lib/mock-examcell-state";
 
 // Subcomponents imports
 import { SubjectHeader } from "@/components/dashboard/subjects/subject-header";
@@ -28,20 +29,52 @@ function FacultySubjectsPage() {
   const { profile } = useRole();
   const deptCode = profile.department || "CSE";
   
-  // Retrieve mock data dynamically based on active department
   const dashboardData = (FACULTY_DASHBOARD_DATA_BY_DEPT[deptCode] || FACULTY_DASHBOARD_DATA_BY_DEPT["CSE"]) as FacultyDashboardData;
-  const originalSubjects = dashboardData.subjectsList || [];
+
+  // Dynamically resolve assigned sections appointed by Examcell for logged-in faculty
+  const assignedSections = useMemo(() => {
+    return getFacultyAssignedSections(profile.name || profile.personaName || "Amit Rathore");
+  }, [profile.name, profile.personaName]);
+
+  const originalSubjects: SubjectItem[] = useMemo(() => {
+    return assignedSections.map(sec => {
+      const typeLower = (sec.courseType || "").toLowerCase();
+      const isIntegrated = typeLower.includes("integrated") || sec.credits >= 4;
+      const isLab = typeLower.includes("lab");
+
+      const typeLabel = isLab ? "Lab" : isIntegrated ? "Integrated" : "Theory";
+      const weeklyHours = isIntegrated ? 5 : isLab ? 4 : 3;
+
+      return {
+        id: sec.id,
+        code: sec.subjectCode,
+        name: sec.subjectName,
+        type: typeLabel as any,
+        status: 'Active' as const,
+        credits: sec.credits,
+        regulation: 'R22',
+        semester: `Sem ${sec.semester}`,
+        department: sec.department,
+        assignedSections: [`${sec.department}-${sec.section}`],
+        sections: [`${sec.department}-${sec.section}`],
+        weeklyHours: weeklyHours,
+        studentsCount: sec.studentCount,
+        studentCount: sec.studentCount,
+        syllabusCompletion: 85,
+        assignmentsCount: 4,
+        labsCompleted: isLab ? 8 : undefined
+      };
+    }) as SubjectItem[];
+  }, [assignedSections]);
 
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState("ALL");
   const [selectedStatus, setSelectedStatus] = useState("ALL");
   
-  // Detail Drawer state
   const [selectedSubject, setSelectedSubject] = useState<SubjectItem | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Reset filters when department context swaps
   useEffect(() => {
     setSearchQuery("");
     setSelectedType("ALL");
@@ -53,11 +86,11 @@ function FacultySubjectsPage() {
   const handleRefresh = () => {
     setLoading(true);
     toast.success("Synchronizing syllabus databases...", {
-      description: "Fetching updated lesson plans.",
+      description: "Fetching updated appointed subjects.",
     });
     setTimeout(() => {
       setLoading(false);
-    }, 800);
+    }, 600);
   };
 
   const handleSelectSubject = (subject: SubjectItem) => {
@@ -65,7 +98,6 @@ function FacultySubjectsPage() {
     setDrawerOpen(true);
   };
 
-  // Filter subjects locally
   const filteredSubjects = originalSubjects.filter((sub) => {
     const matchesSearch =
       sub.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -82,23 +114,14 @@ function FacultySubjectsPage() {
       {/* 1. Page Header */}
       <SubjectHeader
         departmentName={DEPARTMENT_NAMES[deptCode] || dashboardData.profileData.department}
-        academicYear={dashboardData.academicYear}
-        semester={dashboardData.semester}
+        academicYear="2024-25"
+        semester="Sem 1 / Sem 5"
       />
 
       {/* 2. Global Load Stats */}
       <StatisticsCards subjects={originalSubjects} />
 
-      {/* 3. Search and filter tools */}
-      <SearchFilterBar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        selectedType={selectedType}
-        onTypeChange={setSelectedType}
-        selectedStatus={selectedStatus}
-        onStatusChange={setSelectedStatus}
-        onRefresh={handleRefresh}
-      />
+
 
       {/* 4. Grid view vs Skeletons */}
       {loading ? (

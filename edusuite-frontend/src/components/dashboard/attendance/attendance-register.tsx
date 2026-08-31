@@ -3,10 +3,12 @@ import { Panel } from "@/components/dashboard/panel";
 import type { StudentAttendance } from "@/data/faculty-mock-data";
 
 interface AttendanceRegisterProps {
-  students: StudentAttendance[];
+  students?: StudentAttendance[];
+  subject?: string;
+  section?: string;
 }
 
-export function AttendanceRegister({ students }: AttendanceRegisterProps) {
+export function AttendanceRegister({ students = [], subject, section }: AttendanceRegisterProps) {
   // Generate dates 01 Aug to 15 Aug
   const days = Array.from({ length: 15 }, (_, i) => i + 1);
 
@@ -35,9 +37,16 @@ export function AttendanceRegister({ students }: AttendanceRegisterProps) {
     return "P";
   };
 
+  const studentList = students && students.length > 0 ? students : Array.from({ length: 24 }).map((_, i) => ({
+    rollNumber: `26SEC0${(i + 1).toString().padStart(2, "0")}`,
+    name: ["Alapati Charan", "Meka Krishna", "Boddu Varun", "K. Sai Teja", "Sanjay Gupta", "A. Meghana", "R. Karthik", "J. Rahul"][i % 8] || `Student ${i + 1}`,
+    status: "Present",
+    percentage: 85
+  }));
+
   return (
     <Panel
-      title="Monthly Attendance Register Grid"
+      title={`Monthly Attendance Register Grid ${subject && subject !== 'ALL' ? `— ${subject}` : ''}`}
       description="Visual matrix showing daily attendance logs for August 2026"
       className="border border-border bg-card rounded-2xl p-5 shadow-card text-xs"
     >
@@ -54,7 +63,7 @@ export function AttendanceRegister({ students }: AttendanceRegisterProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {students.map((stud) => (
+            {studentList.map((stud) => (
               <TableRow key={stud.rollNumber} className="hover:bg-muted/20">
                 <TableCell className="font-bold text-foreground sticky left-0 bg-background/90 z-10 border-r">
                   <div>

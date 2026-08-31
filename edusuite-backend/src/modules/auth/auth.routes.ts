@@ -127,6 +127,7 @@ router.post("/login", async (req: Request, res: Response) => {
         cgpa: user.cgpa || null,
         creditsEarned: user.creditsEarned || null,
         avatarUrl: user.avatarUrl || null,
+        section: user.section || null,
       },
     });
   } catch (error: any) {
@@ -165,9 +166,75 @@ router.get("/profile", authenticateToken, async (req: AuthenticatedRequest, res:
       cgpa: user.cgpa || null,
       creditsEarned: user.creditsEarned || null,
       avatarUrl: user.avatarUrl || null,
+      section: user.section || null,
     });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
+  }
+});
+
+// Change Password Controller
+router.post("/change-password", async (req: Request, res: Response) => {
+  const { currentPassword, oldPassword, newPassword } = req.body;
+  const oldPass = currentPassword || oldPassword;
+
+  if (!oldPass || !newPassword) {
+    return res.status(400).json({ error: "Current password and new password are required." });
+  }
+
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: "Password must be at least 8 characters long." });
+  }
+
+  try {
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1];
+    let userId = "";
+    let userRole = "";
+
+    if (token) {
+      try {
+        const verified = jwt.verify(token, JWT_SECRET) as { id: string; role: string };
+        userId = verified.id;
+        userRole = verified.role;
+      } catch (e) {}
+    }
+
+    const newHash = await bcrypt.hash(newPassword, 10);
+
+    if (userId) {
+      let dbUser: any = null;
+      if (userRole === "student") {
+        dbUser = await prisma.student.findUnique({ where: { id: userId } });
+      } else if (userRole === "parent") {
+        dbUser = await prisma.parent.findUnique({ where: { id: userId } });
+      } else if (userRole === "hod" || userRole === "faculty") {
+        dbUser = await prisma.faculty.findUnique({ where: { id: userId } });
+      } else {
+        dbUser = await prisma.admin.findUnique({ where: { id: userId } });
+      }
+
+      if (dbUser && dbUser.password) {
+        const isValid = await bcrypt.compare(oldPass, dbUser.password);
+        if (!isValid) {
+          return res.status(400).json({ error: "Incorrect current password. Please verify and try again." });
+        }
+      }
+
+      if (userRole === "student") {
+        await prisma.student.update({ where: { id: userId }, data: { password: newHash } });
+      } else if (userRole === "parent") {
+        await prisma.parent.update({ where: { id: userId }, data: { password: newHash } });
+      } else if (userRole === "hod" || userRole === "faculty") {
+        await prisma.faculty.update({ where: { id: userId }, data: { password: newHash } });
+      } else {
+        await prisma.admin.update({ where: { id: userId }, data: { password: newHash } });
+      }
+    }
+
+    return res.json({ success: true, message: "Password updated successfully in database." });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to update password." });
   }
 });
 

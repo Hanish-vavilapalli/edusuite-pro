@@ -62,7 +62,44 @@ export function CourseMaterials({ materials, searchQuery }: CourseMaterialsProps
     });
   };
 
-  const handleDownload = (mat: MaterialItem) => {
+  const handlePreview = (mat: MaterialItem) => {
+    if (mat.url) {
+      const previewUrl = mat.url.startsWith("http")
+        ? mat.url
+        : `http://localhost:5000${mat.url}`;
+      window.open(previewUrl, "_blank");
+    } else {
+      setPreviewMaterial(mat);
+    }
+  };
+
+  const handleDownload = async (mat: MaterialItem) => {
+    if (mat.url) {
+      const downloadUrl = mat.url.startsWith("http")
+        ? mat.url
+        : `http://localhost:5000${mat.url}`;
+      
+      try {
+        const response = await fetch(downloadUrl);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = mat.title.toLowerCase().endsWith(".pdf") ? mat.title : `${mat.title}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+        toast.success(`Downloaded ${mat.title} (${mat.size})`);
+        return;
+      } catch (err) {
+        console.error("Failed to download file via blob", err);
+        // Fallback to window.open if blocked
+        window.open(downloadUrl, "_blank");
+        return;
+      }
+    }
+
     const content = `EDUSUITE PRO LMS DIGITAL MATERIAL
 =====================================================
 Title: ${mat.title}
@@ -110,153 +147,74 @@ Verified Official Academic Resource — EduSuite ERP`;
     }
   };
 
+  console.log("=== CourseMaterials Render ===");
+  console.log("materials prop passed:", materials);
+  console.log("filteredMaterials output:", filteredMaterials);
+
   return (
-    <div className="space-y-4">
-      {/* TOOLBAR */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
-        <div className="flex items-center gap-2">
-          <FileText className="h-5 w-5 text-purple-600" />
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-              Digital Course Materials Repository
-            </h3>
-            <p className="text-[11px] text-slate-500 font-medium">
-              Access 200+ verified notes, lab manuals, past question papers & lecture slides.
-            </p>
+    <div className="space-y-6">
+      {/* STUDY NOTE CARDS GRID */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {filteredMaterials.map((mat) => (
+          <div
+            key={mat.id}
+            className="p-4 rounded-2xl border border-border bg-card shadow-xs hover:shadow-md hover:border-primary/20 transition-all flex flex-col justify-between space-y-3.5 group overflow-hidden"
+          >
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-primary/10 text-primary border border-primary/15 font-mono">
+                  {mat.courseCode !== "GEN" ? mat.courseCode : "General"}
+                </span>
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  {mat.size}
+                </span>
+              </div>
+              <h4 className="text-xs font-bold text-foreground line-clamp-2 min-h-[32px] group-hover:text-primary transition-colors">
+                {mat.title}
+              </h4>
+              <p className="text-[10px] text-muted-foreground truncate" title={mat.courseName}>
+                {mat.courseCode !== "GEN" ? mat.courseName : "General Academic Resource"}
+              </p>
+            </div>
+
+            <div className="pt-2 border-t border-border/60 flex items-center justify-between text-[10px] text-muted-foreground font-medium">
+              <span>{mat.faculty}</span>
+              <span className="font-mono">{mat.uploadDate}</span>
+            </div>
+
+            {/* ACTION BUTTONS */}
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <Button
+                onClick={() => handlePreview(mat)}
+                size="sm"
+                variant="outline"
+                className="h-8 text-[11px] font-bold border-border text-foreground hover:bg-muted/40 w-full"
+              >
+                <Eye className="h-3.5 w-3.5 text-purple-600 mr-1 shrink-0" />
+                Preview
+              </Button>
+              <Button
+                onClick={() => handleDownload(mat)}
+                size="sm"
+                variant="outline"
+                className="h-8 text-[11px] font-bold border-border text-foreground hover:bg-muted/40 w-full"
+              >
+                <Download className="h-3.5 w-3.5 text-blue-600 mr-1 shrink-0" />
+                Save
+              </Button>
+            </div>
           </div>
-        </div>
-
-        {/* COURSE FILTER DROPDOWN */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 font-medium font-mono">Course:</span>
-          <select
-            value={selectedCourseFilter}
-            onChange={(e) => setSelectedCourseFilter(e.target.value)}
-            className="h-8 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 font-bold text-slate-700 dark:text-slate-200"
-          >
-            {courseCodes.map((c) => (
-              <option key={c} value={c}>{c === "All" ? "All Courses" : c}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* CATEGORY CHIPS */}
-      <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setSelectedCategory(cat)}
-            className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
-              selectedCategory === cat
-                ? "bg-purple-600 text-white shadow-xs"
-                : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200"
-            }`}
-          >
-            {cat}
-          </button>
         ))}
       </div>
 
-      {/* MATERIALS GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {filteredMaterials.slice(0, 30).map((mat) => {
-          const isBookmarked = bookmarkedIds[mat.id] ?? mat.isBookmarked;
-
-          return (
-            <div
-              key={mat.id}
-              className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs hover:shadow-sm hover:border-purple-500/30 transition-all space-y-3 flex flex-col justify-between group overflow-hidden"
-            >
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Badge variant="outline" className="text-[10px] font-mono font-bold text-purple-600 border-purple-200">
-                    {mat.courseCode}
-                  </Badge>
-
-                  <div className="flex items-center gap-1.5">
-                    <Badge className="text-[9px] px-2 py-0.5 font-mono bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                      {mat.category}
-                    </Badge>
-                    <button
-                      onClick={() => toggleBookmark(mat.id)}
-                      className={`p-1 rounded-lg border transition-colors ${
-                        isBookmarked
-                          ? "bg-amber-50 text-amber-600 border-amber-300"
-                          : "border-slate-200 dark:border-slate-700 text-slate-400 hover:text-amber-500"
-                      }`}
-                      title={isBookmarked ? "Remove Bookmark" : "Bookmark Material"}
-                    >
-                      <Bookmark className={`h-3.5 w-3.5 ${isBookmarked ? "fill-amber-500 text-amber-500" : ""}`} />
-                    </button>
-                  </div>
-                </div>
-
-                <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-purple-600 transition-colors leading-snug line-clamp-2">
-                  {mat.title}
-                </h4>
-
-                <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono pt-1">
-                  <span>{mat.faculty}</span>
-                  <span>{mat.uploadDate}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-500 font-mono">
-                <span>{mat.fileType} • {mat.size}</span>
-                <span>{mat.downloads} Downloads</span>
-              </div>
-
-              {/* ACTION BUTTONS */}
-              <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800 w-full min-w-0 overflow-hidden">
-                <Button
-                  onClick={() => setPreviewMaterial(mat)}
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-[11px] px-1 font-semibold rounded-xl border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 w-full min-w-0 overflow-hidden"
-                  title="Preview document"
-                >
-                  <Eye className="h-3.5 w-3.5 text-purple-600 shrink-0" />
-                  <span className="truncate">Preview</span>
-                </Button>
-
-                <Button
-                  onClick={() => handleDownload(mat)}
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-[11px] px-1 font-semibold rounded-xl border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 gap-1 hover:bg-slate-100 dark:hover:bg-slate-800 w-full min-w-0 overflow-hidden"
-                  title="Download file"
-                >
-                  <Download className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-                  <span className="truncate">Save</span>
-                </Button>
-
-                <Button
-                  onClick={() => handleShare(mat)}
-                  size="sm"
-                  variant="outline"
-                  className={`h-8 text-[11px] px-1 font-semibold rounded-xl border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 gap-1 hover:bg-slate-100 dark:hover:bg-slate-800 w-full min-w-0 overflow-hidden cursor-pointer ${
-                    copiedId === mat.id ? "text-emerald-600 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30" : ""
-                  }`}
-                  title="Share material link"
-                >
-                  {copiedId === mat.id ? (
-                    <>
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                      <span className="truncate text-emerald-600 font-bold">Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Share2 className="h-3.5 w-3.5 text-slate-600 shrink-0" />
-                      <span className="truncate">Share</span>
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      {filteredMaterials.length === 0 && (
+        <div className="p-12 text-center border border-dashed border-border bg-muted/10 rounded-2xl">
+          <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2.5 opacity-50 animate-pulse" />
+          <p className="text-xs text-muted-foreground font-bold">
+            No official study notes or PDFs cataloged for your department.
+          </p>
+        </div>
+      )}
 
       {/* PREVIEW MODAL */}
       {previewMaterial && (
@@ -264,7 +222,7 @@ Verified Official Academic Resource — EduSuite ERP`;
           <DialogContent className="max-w-xl rounded-2xl p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
             <DialogHeader className="border-b pb-3 border-slate-100 dark:border-slate-800 text-left">
               <Badge variant="outline" className="w-fit mb-1 font-mono font-bold text-purple-600 border-purple-200">
-                {previewMaterial.courseCode} • {previewMaterial.category}
+                {previewMaterial.courseCode} • PDF
               </Badge>
               <DialogTitle className="text-base font-bold">
                 {previewMaterial.title}
@@ -277,7 +235,7 @@ Verified Official Academic Resource — EduSuite ERP`;
             <div className="my-4 p-6 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-center space-y-3">
               <FileText className="h-12 w-12 text-purple-600 mx-auto" />
               <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                Document Preview Window ({previewMaterial.fileType})
+                Document Preview Window (PDF)
               </p>
               <p className="text-[11px] text-slate-500">
                 Simulated high-resolution canvas viewer for EduSuite LMS learning materials.

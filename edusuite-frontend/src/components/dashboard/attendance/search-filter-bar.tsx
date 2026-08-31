@@ -11,8 +11,10 @@ interface SearchFilterBarProps {
   onSubjectChange: (val: string) => void;
   selectedSection: string;
   onSectionChange: (val: string) => void;
-  uniqueSubjects: string[];
-  uniqueSections: string[];
+  uniqueSubjects?: string[];
+  uniqueSections?: string[];
+  subjectsList?: string[];
+  sectionsList?: string[];
   onRefresh: () => void;
 }
 
@@ -25,6 +27,8 @@ export function SearchFilterBar({
   onSectionChange,
   uniqueSubjects,
   uniqueSections,
+  subjectsList,
+  sectionsList,
   onRefresh,
 }: SearchFilterBarProps) {
   const handleExport = () => {
@@ -32,6 +36,11 @@ export function SearchFilterBar({
       description: "Excel workbook download started.",
     });
   };
+
+  const rawSubjects = uniqueSubjects || subjectsList || [];
+  const rawSections = uniqueSections || sectionsList || [];
+  const subjects = Array.from(new Set(rawSubjects.filter(Boolean)));
+  const sections = Array.from(new Set(rawSections.filter(Boolean)));
 
   return (
     <div className="flex flex-col sm:flex-row items-center gap-3 bg-muted/40 p-4 rounded-2xl border text-xs">
@@ -54,7 +63,7 @@ export function SearchFilterBar({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All Subjects</SelectItem>
-            {uniqueSubjects.map((sub) => (
+            {subjects.map((sub) => (
               <SelectItem key={sub} value={sub}>
                 {sub}
               </SelectItem>
@@ -68,7 +77,7 @@ export function SearchFilterBar({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All Sections</SelectItem>
-            {uniqueSections.map((sec) => (
+            {sections.map((sec) => (
               <SelectItem key={sec} value={sec}>
                 {sec}
               </SelectItem>
@@ -77,18 +86,22 @@ export function SearchFilterBar({
         </Select>
 
         <Button
-          onClick={onRefresh}
           variant="outline"
-          className="rounded-xl cursor-pointer hover:bg-muted text-xs h-10 w-[42px] px-0 flex justify-center items-center"
+          size="icon"
+          onClick={onRefresh}
+          className="rounded-xl h-10 w-10 shrink-0"
+          title="Refresh Data"
         >
           <RefreshCw className="size-4 text-muted-foreground" />
         </Button>
-        
+
         <Button
+          variant="outline"
           onClick={handleExport}
-          className="rounded-xl bg-brand-gradient shadow-glow cursor-pointer text-xs h-10 px-3.5 flex items-center gap-1.5 font-bold"
+          className="rounded-xl h-10 text-xs font-bold gap-1.5 shrink-0"
         >
-          <FileSpreadsheet className="size-4" /> Export Excel
+          <FileSpreadsheet className="size-4 text-emerald-600" />
+          Export
         </Button>
       </div>
     </div>

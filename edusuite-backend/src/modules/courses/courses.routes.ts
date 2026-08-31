@@ -15,11 +15,28 @@ router.get("/", authenticateToken, async (req: AuthenticatedRequest, res: Respon
       return res.status(404).json({ error: "User profile not found." });
     }
 
-    const semester = user.semester || 6;
+    let semester = user.semester || 6;
+    if (req.query.semester) {
+      semester = Number(req.query.semester);
+    }
 
-    // Fetch all courses offered in this semester
+    // Handle variations in department names (e.g. AI&ML vs AIML)
+    const userDept = user.department || "CSE";
+    const deptVariations = [
+      userDept,
+      userDept === "AI&ML" ? "AIML" : userDept === "AIML" ? "AI&ML" : null,
+      userDept === "AI&DS" ? "AIDS" : userDept === "AIDS" ? "AI&DS" : null,
+      userDept === "MECHANICAL" ? "MECH" : userDept === "MECH" ? "MECHANICAL" : null,
+    ].filter(Boolean) as string[];
+
+    // Fetch all courses offered in this semester for student department variations
     const courses = await prisma.course.findMany({
-      where: { semester },
+      where: {
+        semester,
+        department: { in: deptVariations },
+        isOffered: true,
+        status: "Approved"
+      },
     });
 
     // Fetch existing registrations for this student to append active status flags
@@ -30,16 +47,35 @@ router.get("/", authenticateToken, async (req: AuthenticatedRequest, res: Respon
     // Map registrations status back to catalog courses
     const mappedCourses = courses.map((c) => {
       const reg = registrations.find((r) => r.courseId === c.id);
+
+      // Parse JSON faculty/sections details to build a human-friendly string
+      let facultyString = c.faculty || "Dr. Ravi Kumar";
+      try {
+        if (c.faculty && c.faculty.startsWith("[")) {
+          const sections = JSON.parse(c.faculty);
+          if (Array.isArray(sections) && sections.length > 0) {
+            const match = sections.find((s: any) => s.section === user.section);
+            if (match) {
+              facultyString = match.mentor_name;
+            } else {
+              facultyString = sections[0].mentor_name;
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Failed to parse faculty json details", e);
+      }
+
       return {
         id: c.id,
         code: c.code,
         name: c.name,
-        faculty: c.faculty,
+        faculty: facultyString,
         credits: c.credits,
         category: c.category,
         semester: c.semester,
         status: reg ? reg.status : "course_registration",
-        isRegistered: reg ? true : false,
+        isRegistered: reg && reg.status !== "nptel_completed" ? true : false,
       };
     });
 
@@ -157,6 +193,35 @@ router.post("/nptel", authenticateToken, async (req: AuthenticatedRequest, res: 
     return res.json({ message: "NPTEL details and exam registrations successfully submitted!" });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/courses/pay-exams: Complete fee payment and register student exams
+router.post("/pay-exams", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const { courseIds } = req.body;
+
+  if (!courseIds || !Array.isArray(courseIds) || courseIds.length === 0) {
+    return res.status(400).json({ error: "Please select at least one course exam for payment." });
+  }
+
+  try {
+    const userId = req.userId!;
+
+    const operations = courseIds.map((courseId) =>
+      prisma.courseRegistration.update({
+        where: {
+          userId_courseId: { userId, courseId },
+        },
+        data: {
+          status: "exam_registered_paid",
+        },
+      })
+    );
+
+    await Promise.all(operations);
+    res.json({ message: "Exam fees paid and registrations confirmed successfully!" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 

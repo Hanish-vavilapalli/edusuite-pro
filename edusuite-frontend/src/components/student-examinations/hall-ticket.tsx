@@ -131,7 +131,6 @@ Controller of Examinations Signature`;
   };
 
   const handlePrint = (title: string) => {
-    toast.info(`Preparing print window for ${title}...`);
     window.print();
   };
 
@@ -139,7 +138,7 @@ Controller of Examinations Signature`;
     <div className="space-y-6">
 
       {/* 1. TOP SUMMARY CARDS */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 no-print">
         {/* Card 1: Released */}
         <div className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm space-y-1.5">
           <div className="flex items-center justify-between">
@@ -202,7 +201,14 @@ Controller of Examinations Signature`;
         
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-4 border-slate-100 dark:border-slate-800 gap-4">
           <div className="flex items-center gap-4">
-            <img src={profile.avatarUrl} alt={profile.name} className="h-16 w-16 rounded-xl object-cover border-2 border-blue-600 shadow-sm" />
+            <div className="h-16 w-16 rounded-xl bg-[#0b193c] text-white font-extrabold text-xl flex items-center justify-center border-2 border-blue-600 shadow-sm tracking-wider font-display shrink-0 uppercase">
+              {(() => {
+                const n = profile.name || "Vikram Malhotra";
+                const clean = n.replace(/^(Dr\.|Prof\.|Mr\.|Ms\.|Mrs\.)\s+/i, "").trim();
+                const parts = clean.split(/\s+/);
+                return parts.length >= 2 ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase() : clean.slice(0, 2).toUpperCase();
+              })()}
+            </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-blue-600 font-mono font-bold uppercase">
@@ -219,7 +225,7 @@ Controller of Examinations Signature`;
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 no-print">
             <Button
               onClick={() => onOpenModal()}
               size="sm"
@@ -289,111 +295,224 @@ Controller of Examinations Signature`;
 
       </div>
 
-      {/* 3. PREVIOUS YEARS HALL TICKETS ARCHIVE TABLE */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <History className="h-4 w-4 text-purple-600" /> Previous Hall Tickets Archive
-            </h4>
-            <p className="text-xs text-slate-500">Historical records for previous semester admit cards</p>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-            {/* SEARCH INPUT */}
-            <div className="relative w-48 sm:w-60">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-              <Input
-                placeholder="Search semester or hall ticket..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 h-8 text-xs rounded-xl"
-              />
+      {/* 3. PREVIOUS YEARS HALL TICKETS ARCHIVE TABLE (Only for Sem 2+) */}
+      {selectedSemester > 1 && profile.currentSemester > 1 && (
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <History className="h-4 w-4 text-purple-600" /> Previous Hall Tickets Archive
+              </h4>
+              <p className="text-xs text-slate-500">Historical records for previous semester admit cards</p>
             </div>
 
-            {/* STATUS FILTER DROPDOWN */}
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-8 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 px-2 font-semibold"
-            >
-              <option value="all">All Statuses</option>
-              <option value="released">Released</option>
-              <option value="downloaded">Downloaded</option>
-              <option value="verified & issued">Verified & Issued</option>
-              <option value="pending">Pending</option>
-              <option value="withheld">Withheld</option>
-            </select>
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+              {/* SEARCH INPUT */}
+              <div className="relative w-48 sm:w-60">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  placeholder="Search semester or hall ticket..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8 h-8 text-xs rounded-xl"
+                />
+              </div>
+
+              {/* STATUS FILTER DROPDOWN */}
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="h-8 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 px-2 font-semibold"
+              >
+                <option value="all">All Statuses</option>
+                <option value="released">Released</option>
+                <option value="downloaded">Downloaded</option>
+                <option value="verified & issued">Verified & Issued</option>
+                <option value="pending">Pending</option>
+                <option value="withheld">Withheld</option>
+              </select>
+            </div>
           </div>
-        </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-500 font-semibold">
-                <th className="p-3">Semester</th>
-                <th className="p-3">Academic Year</th>
-                <th className="p-3">Exam Type</th>
-                <th className="p-3">Hall Ticket Number</th>
-                <th className="p-3">Generated Date</th>
-                <th className="p-3">Status</th>
-                <th className="p-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {filteredPastHallTickets.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="p-6 text-center text-slate-400 text-xs">
-                    No hall ticket records match your search filter.
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-500 font-semibold">
+                  <th className="p-3">Semester</th>
+                  <th className="p-3">Academic Year</th>
+                  <th className="p-3">Exam Type</th>
+                  <th className="p-3">Hall Ticket Number</th>
+                  <th className="p-3">Generated Date</th>
+                  <th className="p-3">Status</th>
+                  <th className="p-3 text-right">Actions</th>
                 </tr>
-              ) : (
-                filteredPastHallTickets.map((ht) => (
-                  <tr key={ht.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                    <td className="p-3 font-bold text-slate-900 dark:text-white">Semester {ht.semester}</td>
-                    <td className="p-3 font-mono text-slate-600 dark:text-slate-400">{ht.academicYear}</td>
-                    <td className="p-3 text-slate-600 dark:text-slate-400">{ht.examType}</td>
-                    <td className="p-3 font-mono font-bold text-blue-600">{ht.hallTicketNumber}</td>
-                    <td className="p-3 font-mono text-slate-500">{ht.generatedDate}</td>
-                    <td className="p-3">{getStatusBadge(ht.status)}</td>
-                    <td className="p-3 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {/* 1. VIEW HALL TICKET BUTTON */}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => onOpenModal(ht)}
-                          className="h-7 text-xs font-semibold gap-1 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl cursor-pointer"
-                        >
-                          <Eye className="h-3.5 w-3.5" /> View
-                        </Button>
-
-                        {/* 2. DOWNLOAD PDF BUTTON */}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDownloadPDF(`Semester ${ht.semester} Hall Ticket`, ht.hallTicketNumber)}
-                          className="h-7 text-xs font-semibold gap-1 text-slate-700 dark:text-slate-300 rounded-xl cursor-pointer border-slate-200 dark:border-slate-700"
-                        >
-                          <Download className="h-3.5 w-3.5 text-blue-600" /> PDF
-                        </Button>
-
-                        {/* 3. PRINT BUTTON */}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handlePrint(`Semester ${ht.semester} Hall Ticket`)}
-                          className="h-7 text-xs font-semibold gap-1 text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer"
-                        >
-                          <Printer className="h-3.5 w-3.5" /> Print
-                        </Button>
-                      </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {filteredPastHallTickets.filter(ht => ht.semester < selectedSemester).length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="p-6 text-center text-slate-400 text-xs">
+                      No previous semester hall tickets recorded.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  filteredPastHallTickets.filter(ht => ht.semester < selectedSemester).map((ht) => (
+                    <tr key={ht.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                      <td className="p-3 font-bold text-slate-900 dark:text-white">Semester {ht.semester}</td>
+                      <td className="p-3 font-mono text-slate-600 dark:text-slate-400">{ht.academicYear}</td>
+                      <td className="p-3 text-slate-600 dark:text-slate-400">{ht.examType}</td>
+                      <td className="p-3 font-mono font-bold text-blue-600">{ht.hallTicketNumber}</td>
+                      <td className="p-3 font-mono text-slate-500">{ht.generatedDate}</td>
+                      <td className="p-3">{getStatusBadge(ht.status)}</td>
+                      <td className="p-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* 1. VIEW HALL TICKET BUTTON */}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => onOpenModal(ht)}
+                            className="h-7 text-xs font-semibold gap-1 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl cursor-pointer"
+                          >
+                            <Eye className="h-3.5 w-3.5" /> View
+                          </Button>
+
+                          {/* 2. DOWNLOAD PDF BUTTON */}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDownloadPDF(`Semester ${ht.semester} Hall Ticket`, ht.hallTicketNumber)}
+                            className="h-7 text-xs font-semibold gap-1 text-slate-700 dark:text-slate-300 rounded-xl cursor-pointer border-slate-200 dark:border-slate-700"
+                          >
+                            <Download className="h-3.5 w-3.5 text-blue-600" /> PDF
+                          </Button>
+
+                          {/* 3. PRINT BUTTON */}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handlePrint(`Semester ${ht.semester} Hall Ticket`)}
+                            className="h-7 text-xs font-semibold gap-1 text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer"
+                          >
+                            <Printer className="h-3.5 w-3.5" /> Print
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ==========================================
+          OFFICIAL PRINT CONTAINER (#hall-ticket-print-area)
+          This element is hidden on screen and rendered ONLY during window.print()
+         ========================================== */}
+      <div id="hall-ticket-print-area" className="hidden">
+        <div className="p-6 bg-white text-slate-900 font-sans space-y-5">
+          {/* Print Header */}
+          <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-[#0b193c] text-white font-black grid place-items-center text-xs leading-tight text-center rounded-xl border border-slate-900">
+                <span>EDUSUITE<br/>UNIV</span>
+              </div>
+              <div>
+                <h1 className="text-base font-extrabold tracking-tight uppercase text-slate-900 font-display">
+                  EDUSUITE PRO UNIVERSITY &mdash; EXAMINATIONS BOARD
+                </h1>
+                <p className="text-xs font-bold text-slate-600 font-mono uppercase tracking-wider">
+                  OFFICIAL EXAMINATION HALL TICKET / ADMIT CARD &middot; SEMESTER {selectedSemester}
+                </p>
+              </div>
+            </div>
+            <div className="text-right text-xs font-mono">
+              <div className="font-extrabold text-slate-900">AY: {selectedYear}</div>
+              <div className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-300 inline-block mt-1">
+                VERIFIED & ISSUED
+              </div>
+            </div>
+          </div>
+
+          {/* Student & Exam Metadata Grid */}
+          <div className="grid grid-cols-3 gap-4 border border-slate-800 p-4 rounded-xl text-xs bg-slate-50/50">
+            <div className="col-span-2 space-y-1">
+              <div><span className="text-slate-500 font-bold">Candidate Name:</span> <strong className="text-sm font-extrabold text-slate-900 uppercase ml-1">{profile.name}</strong></div>
+              <div><span className="text-slate-500 font-bold">Roll Number:</span> <strong className="font-mono font-extrabold text-blue-800 ml-1">{profile.rollNumber}</strong></div>
+              <div><span className="text-slate-500 font-bold">Program / Branch:</span> <strong className="text-slate-800 ml-1">{profile.program} &middot; {profile.branch} ({profile.section})</strong></div>
+              <div><span className="text-slate-500 font-bold">Hall Ticket Number:</span> <strong className="font-mono font-extrabold text-slate-900 ml-1">HT-2026-SEM{selectedSemester}-0542</strong></div>
+            </div>
+            <div className="border-l border-slate-300 pl-4 space-y-1.5">
+              <div>
+                <span className="text-[10px] text-slate-500 block font-bold uppercase">Examination Centre</span>
+                <strong className="text-xs font-extrabold text-slate-900">{profile.examCenter || "Main Campus - Academic Block A"}</strong>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 block font-bold uppercase">Reporting Time</span>
+                <strong className="text-xs font-extrabold font-mono text-amber-700">{profile.examSession || "09:00 AM"}</strong>
+              </div>
+            </div>
+          </div>
+
+          {/* Exam Schedule Table */}
+          <div className="space-y-2">
+            <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+              Registered Examination Schedule
+            </h3>
+            <table className="w-full text-xs text-left border-collapse border border-slate-800">
+              <thead>
+                <tr className="bg-slate-100 font-bold text-slate-800 border-b border-slate-800">
+                  <th className="p-2 border-r border-slate-800">Subject Code</th>
+                  <th className="p-2 border-r border-slate-800">Subject Name</th>
+                  <th className="p-2 border-r border-slate-800">Exam Date</th>
+                  <th className="p-2 border-r border-slate-800">Time Slot</th>
+                  <th className="p-2 border-r border-slate-800">Hall No</th>
+                  <th className="p-2 border-r border-slate-800">Seat No</th>
+                  <th className="p-2">Invigilator Sign</th>
+                </tr>
+              </thead>
+              <tbody>
+                {exams.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="p-3 text-center text-slate-500 italic">No exams registered for this semester.</td>
+                  </tr>
+                ) : (
+                  exams.map((ex) => (
+                    <tr key={ex.id} className="border-b border-slate-300">
+                      <td className="p-2 font-mono font-bold text-blue-900 border-r border-slate-300">{ex.subjectCode}</td>
+                      <td className="p-2 font-bold text-slate-900 border-r border-slate-300">{ex.subjectName}</td>
+                      <td className="p-2 font-mono border-r border-slate-300">{ex.examDate}</td>
+                      <td className="p-2 text-slate-700 border-r border-slate-300">{ex.timeSlot}</td>
+                      <td className="p-2 font-mono font-bold text-slate-900 border-r border-slate-300">{ex.hallNumber}</td>
+                      <td className="p-2 font-mono font-bold text-emerald-800 border-r border-slate-300">{ex.seatNumber}</td>
+                      <td className="p-2 text-[9px] text-slate-400 italic">Sign Here</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Instructions & Official Seal */}
+          <div className="grid grid-cols-3 gap-4 border border-slate-300 p-4 rounded-xl text-xs bg-slate-50/30">
+            <div className="col-span-2 space-y-1 text-[10px]">
+              <strong className="font-extrabold block text-slate-900 uppercase">Mandatory Candidate Instructions:</strong>
+              <ol className="list-decimal list-inside space-y-0.5 text-slate-700 font-medium">
+                <li>Candidate must bring official Hall Ticket and College Student ID Card to the exam hall.</li>
+                <li>Smartwatches, mobile phones, and programmable electronic devices are strictly banned inside examination halls.</li>
+                <li>Candidates must occupy designated seat numbers 15 minutes before exam commencement.</li>
+              </ol>
+            </div>
+            <div className="flex flex-col items-center justify-between border-l border-slate-300 pl-4 py-1 text-center">
+              <div className="font-mono text-[8px] tracking-widest text-slate-800 border-b border-t border-slate-400 py-1 w-full font-black">
+                |||| | |||||| ||| ||||||| ||||
+              </div>
+              <div className="text-[10px] font-extrabold text-slate-900">Controller of Examinations</div>
+              <span className="text-[9px] text-emerald-800 font-extrabold uppercase border border-emerald-400 px-2 py-0.5 rounded bg-emerald-50">
+                OFFICIALLY SEALED & VERIFIED
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 

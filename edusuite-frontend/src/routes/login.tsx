@@ -5,6 +5,9 @@ import {
   ChevronDown,
   CheckCircle2,
   ArrowRight,
+  Eye,
+  EyeOff,
+  AlertCircle,
 } from "lucide-react";
 
 import { AuthLayout } from "@/components/auth/auth-layout";
@@ -96,6 +99,8 @@ function LoginPage() {
   const initialCreds = getDefaultCredentialsForSelection("staff", "hod");
   const [email, setEmail] = useState<string>(initialCreds.email);
   const [password, setPassword] = useState<string>(initialCreds.password);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [authError, setAuthError] = useState<string>("");
 
   // Dynamic Designation options driven by auth service
   const designationOptions = useMemo(() => {
@@ -125,6 +130,8 @@ function LoginPage() {
   // Handler when 1st dropdown changes
   const handleStep1Change = (newCoreRole: CoreRoleKey) => {
     setStep1CoreRole(newCoreRole);
+    setAuthError("");
+
     const designations = getDesignationOptionsForCoreRole(newCoreRole);
     const defaultDesignation = designations[0]?.id || "";
     setStep2Designation(defaultDesignation);
@@ -142,6 +149,7 @@ function LoginPage() {
   // Handler when 2nd dropdown changes
   const handleStep2Change = (newDesignation: string) => {
     setStep2Designation(newDesignation);
+    setAuthError("");
     const scopes = getScopeOptionsForDesignation(step1CoreRole, newDesignation);
     const defaultScope = scopes[0]?.value || "";
     setStep3Branch(defaultScope);
@@ -155,10 +163,12 @@ function LoginPage() {
   // Handler when 3rd dropdown changes
   const handleStep3Change = (newBranch: string) => {
     setStep3Branch(newBranch);
+    setAuthError("");
   };
 
   const handleDirectLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthError("");
     const loadingToast = toast.loading("Authenticating login credentials...");
 
     try {
@@ -169,13 +179,16 @@ function LoginPage() {
 
       if (response.status !== 200 || !response.data) {
         toast.dismiss(loadingToast);
-        toast.error(response.data?.error || "Login failed. Please verify credentials or ensure the database is running.");
+        const errMsg = response.data?.error || "Login failed. Please verify your password.";
+        setAuthError(errMsg);
+        toast.error(errMsg);
         return;
       }
 
       const { token, user } = response.data;
       localStorage.setItem("token", token);
       localStorage.setItem("cms_token", token);
+      localStorage.setItem("cms_user", JSON.stringify(user));
 
       // Dynamically resolve role context from mock service to get navigation flags
       const resolved = resolveRoleContextFromSelection(step1CoreRole, step2Designation, step3Branch);
@@ -198,9 +211,11 @@ function LoginPage() {
         const target = resolved.targetRoute || (step2Designation === "admission_desk" ? "/dashboard/admission" : "/dashboard");
         navigate({ to: target });
       }
-    } catch (err) {
+    } catch (err: any) {
       toast.dismiss(loadingToast);
-      toast.error("Failed to establish server connection. Is the backend running?");
+      const errMsg = err?.response?.data?.error || "Incorrect login credentials. Please check your email and password.";
+      setAuthError(errMsg);
+      toast.error(errMsg);
     }
   };
 
@@ -218,6 +233,14 @@ function LoginPage() {
       }
     >
       <form className="space-y-5" onSubmit={handleDirectLogin}>
+        {/* INLINE AUTH ERROR ALERT BANNER */}
+        {authError && (
+          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-semibold flex items-center gap-2.5 animate-in fade-in">
+            <AlertCircle className="size-4 text-rose-600 shrink-0" />
+            <span>{authError}</span>
+          </div>
+        )}
+
         {/* 1ST DROPDOWN: 5 CORE LOGIN ROLES */}
         <div className="space-y-1.5">
           <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
@@ -252,16 +275,17 @@ function LoginPage() {
                 Step 2
               </Badge>
             </Label>
+
             <div className="relative">
               <select
                 value={step2Designation}
                 onChange={(e) => handleStep2Change(e.target.value)}
-                aria-label="2nd Dropdown: Designation / Sub-Role"
+                aria-label="2nd Dropdown: Designation or Sub-Role"
                 className="w-full h-10 rounded-xl border border-input bg-card px-3 pr-8 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary appearance-none"
               >
                 {designationOptions.map((opt) => (
                   <option key={opt.id} value={opt.id}>
-                    {opt.label}
+                    {opt.label || (opt as any).title || opt.id}
                   </option>
                 ))}
               </select>
@@ -329,7 +353,10 @@ function LoginPage() {
               id="email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (authError) setAuthError("");
+              }}
               required
             />
           </div>
@@ -343,13 +370,27 @@ function LoginPage() {
                 Default: password123
               </span>
             </div>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (authError) setAuthError("");
+                }}
+                className="pr-10"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
           </div>
         </div>
 

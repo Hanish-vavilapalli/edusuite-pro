@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRole } from "@/context/role-context";
 import {
   FACULTY_DASHBOARD_DATA_BY_DEPT,
   type FacultyDashboardData,
 } from "@/data/faculty-mock-data";
+import { getFacultyAssignedSections } from "@/lib/mock-examcell-state";
 
 // Subcomponents imports
 import { TimetableHeader } from "@/components/dashboard/timetable/timetable-header";
@@ -36,6 +37,21 @@ function FacultyTimetablePage() {
   // Retrieve mock data dynamically based on active department
   const dashboardData = (FACULTY_DASHBOARD_DATA_BY_DEPT[deptCode] || FACULTY_DASHBOARD_DATA_BY_DEPT["CSE"]) as FacultyDashboardData;
   const tData = dashboardData.timetableData;
+
+  const assignedSections = useMemo(() => {
+    return getFacultyAssignedSections(profile.name || profile.personaName || "Amit Rathore");
+  }, [profile.name, profile.personaName]);
+
+  const dynamicTodaySchedule = useMemo(() => {
+    if (assignedSections.length === 0) return dashboardData.timetable;
+    return assignedSections.map((sec, idx) => ({
+      time: idx === 0 ? "09:00 - 10:00 AM" : idx === 1 ? "10:15 - 11:15 AM" : idx === 2 ? "11:30 - 12:30 PM" : "02:00 - 03:00 PM",
+      subject: `${sec.subjectCode}: ${sec.subjectName}`,
+      section: `${sec.department} Sec ${sec.section}`,
+      room: `Block A - Room ${101 + idx}`,
+      status: idx === 0 ? ("Completed" as const) : idx === 1 ? ("Ongoing" as const) : ("Upcoming" as const)
+    }));
+  }, [assignedSections, dashboardData.timetable]);
 
   const [loading, setLoading] = useState(false);
   const [activeWeek, setActiveWeek] = useState("Week 5 (Active)");
@@ -76,7 +92,7 @@ function FacultyTimetablePage() {
       ) : (
         <div className="space-y-6">
           {/* Today's Schedule horizontal cards */}
-          <TodaySchedule schedule={dashboardData.timetable} />
+          <TodaySchedule schedule={dynamicTodaySchedule} />
 
           {/* Load Summary Statistics Cards */}
           <TeachingLoadCards load={tData.teachingLoad} />

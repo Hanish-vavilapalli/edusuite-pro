@@ -40,6 +40,7 @@ function ScheduleExamsPage() {
   const [semester, setSemester] = useState("5");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [examFee, setExamFee] = useState("2000");
   const [exams, setExams] = useState<MockExamSchedule[]>([]);
 
   useEffect(() => {
@@ -70,7 +71,8 @@ function ScheduleExamsPage() {
       semester: Number(semester),
       startDate,
       endDate,
-      status: 'Pending Approval'
+      status: 'Pending Approval',
+      examFee: Number(examFee) || 2000
     };
 
     const updated = [...currentExams, newExam];
@@ -226,6 +228,20 @@ function ScheduleExamsPage() {
                     />
                   </div>
                 </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-muted-foreground block mb-1">
+                  Exam Registration Fee (INR Flat overall)
+                </label>
+                <Input
+                  type="number"
+                  value={examFee}
+                  onChange={e => setExamFee(e.target.value)}
+                  placeholder="e.g. 2000"
+                  className="h-10 text-xs font-semibold rounded-xl"
+                  required
+                />
               </div>
 
               <div className="pt-2">

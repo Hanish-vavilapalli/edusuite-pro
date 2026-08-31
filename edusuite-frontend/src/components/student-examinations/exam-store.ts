@@ -84,6 +84,7 @@ export function isSemesterCourseRegSubmitted(semester: number): boolean {
 }
 
 export function submitCourseRegistration(semester: number, courseIds: string[]) {
+  if (typeof window === "undefined") return;
   const registered = Array.from(new Set([...getRegisteredCourseIds(), ...courseIds]));
   const semesters = Array.from(new Set([...getSubmittedSemesters(), semester]));
 
@@ -103,6 +104,7 @@ export function getExamRegistrations(): ExamRegistrationRecord[] {
 }
 
 export function saveExamRegistrations(records: ExamRegistrationRecord[]) {
+  if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_KEYS.EXAM_REGISTRATIONS, JSON.stringify(records));
   emitStoreChange();
 }

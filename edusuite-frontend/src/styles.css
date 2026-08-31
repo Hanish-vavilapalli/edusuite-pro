@@ -272,3 +272,69 @@
     opacity: 1;
   }
 }
+
+/* ==========================================
+   BULLETPROOF PRINT STYLES FOR HALL TICKET
+   ========================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide entire application layout during print */
+  #root > * {
+    display: none !important;
+  }
+
+  /* Display ONLY the dedicated print container */
+  #hall-ticket-print-area {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    z-index: 9999999 !important;
+  }
+
+  #hall-ticket-print-area * {
+    visibility: visible !important;
+  }
+
+  /* Print table borders */
+  #hall-ticket-print-area table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  #hall-ticket-print-area th,
+  #hall-ticket-print-area td {
+    border: 1px solid #1e293b !important;
+    padding: 6px 10px !important;
+    color: #000000 !important;
+  }
+
+  #hall-ticket-print-area th {
+    background-color: #f1f5f9 !important;
+  }
+
+  .no-print,
+  button {
+    display: none !important;
+  }
+}
+
+

@@ -96,7 +96,7 @@ export function Topbar() {
       if (flags.includes("isHod")) return "hod";
       if (flags.includes("isLibraryAdmin")) return "librarian";
       if (flags.includes("isPlacementOfficer")) return "placement";
-      if (flags.includes("isExamController")) return "exam_cell";
+      if (flags.includes("isExamController") || flags.includes("isExamAssistant")) return "exam_cell";
       if (flags.includes("isFinanceOfficer")) return "accounts";
       if (flags.includes("isHostelWarden")) return "warden";
       if (flags.includes("isTransportOfficer")) return "transport";
@@ -281,7 +281,8 @@ export function Topbar() {
                               else if (f.id === "isPlacementOfficer") navigate({ to: "/placement/dashboard" });
                               else if (f.id === "isHod") navigate({ to: "/hod/dashboard" });
                               else if (f.id === "isDean") navigate({ to: "/staff" });
-                              else if (f.id === "isExamController") navigate({ to: "/examinations" });
+                              else if (f.id === "isExamController") navigate({ to: "/examcell/dashboard" });
+                              else if (f.id === "isExamAssistant") navigate({ to: "/examcell/dashboard" });
                               else if (f.id === "isFinanceOfficer") navigate({ to: "/finance/dashboard" });
                               else if (f.id === "isHRManager") navigate({ to: "/hr/dashboard" });
                             } else {

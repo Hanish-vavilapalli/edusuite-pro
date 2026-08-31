@@ -29,11 +29,11 @@ export function HallTicketModal({ open, onOpenChange, profile, exams, hallTicket
     ? hallTicketRecord.subjects
     : exams;
 
-  const htNumber = hallTicketRecord?.hallTicketNumber || `HT-2026-SEM${profile.currentSemester}-0542`;
+  const htSemester = hallTicketRecord?.semester || profile.currentSemester || 1;
+  const htNumber = hallTicketRecord?.hallTicketNumber || `HT-2026-SEM${htSemester}-0542`;
   const htStatus = hallTicketRecord?.status || "Verified & Issued";
-  const htCenter = hallTicketRecord?.examCenter || profile.examCenter;
-  const htSemester = hallTicketRecord?.semester || profile.currentSemester;
-  const htYear = hallTicketRecord?.academicYear || profile.academicYear;
+  const htCenter = hallTicketRecord?.examCenter || profile.examCenter || "Block A - Main Exam Centre";
+  const htYear = hallTicketRecord?.academicYear || profile.academicYear || "2025-2026";
   const htReportingTime = hallTicketRecord?.reportingTime || profile.examSession;
   const htInstructions = hallTicketRecord?.instructions || [
     "Hall Ticket and College ID Card are mandatory for entry into examination hall.",
@@ -118,13 +118,16 @@ Controller of Examinations — EduSuite Pro Academic Board`;
 
           {/* STUDENT IDENTIFIER BLOCK */}
           <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            {/* Student Photo + Info */}
+            {/* Student Photo Initials Badge + Info */}
             <div className="flex items-center gap-4">
-              <img
-                src={profile.avatarUrl}
-                alt={profile.name}
-                className="h-16 w-16 rounded-xl object-cover border-2 border-[#0b193c] shadow-sm"
-              />
+              <div className="h-16 w-16 rounded-xl bg-[#0b193c] text-white font-extrabold text-xl flex items-center justify-center border-2 border-[#0b193c] shadow-sm tracking-wider font-display shrink-0 uppercase">
+                {(() => {
+                  const n = profile.name || "Vikram Malhotra";
+                  const clean = n.replace(/^(Dr\.|Prof\.|Mr\.|Ms\.|Mrs\.)\s+/i, "").trim();
+                  const parts = clean.split(/\s+/);
+                  return parts.length >= 2 ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase() : clean.slice(0, 2).toUpperCase();
+                })()}
+              </div>
               <div className="space-y-0.5 text-xs">
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">{profile.name}</h3>
                 <p className="text-slate-500 font-mono">Roll No: <strong className="text-blue-600">{profile.rollNumber}</strong></p>
@@ -233,7 +236,7 @@ Controller of Examinations — EduSuite Pro Academic Board`;
         </div>
 
         {/* FOOTER BUTTONS */}
-        <DialogFooter className="pt-2 flex flex-wrap justify-between gap-2 border-t border-slate-100 dark:border-slate-800">
+        <DialogFooter className="pt-2 flex flex-wrap justify-between gap-2 border-t border-slate-100 dark:border-slate-800 no-print">
           <Button type="button" variant="outline" onClick={handleShare} className="rounded-xl text-xs gap-1.5 border-slate-200 dark:border-slate-700 cursor-pointer">
             <Share2 className="h-3.5 w-3.5 text-blue-600" /> Share Verification Link
           </Button>

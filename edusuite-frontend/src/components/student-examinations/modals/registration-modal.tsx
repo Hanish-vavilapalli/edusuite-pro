@@ -10,22 +10,45 @@ interface RegistrationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedCourses: AvailableCourseItem[];
-  onConfirm: () => void;
+  allCourses: AvailableCourseItem[];
+  onConfirm: (nptelSubmissions: any[]) => void;
 }
 
-export function RegistrationModal({ open, onOpenChange, selectedCourses, onConfirm }: RegistrationModalProps) {
+export function RegistrationModal({ open, onOpenChange, selectedCourses, allCourses, onConfirm }: RegistrationModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [nptelDetails, setNptelDetails] = useState<Record<string, { comments: string; certificateName: string }>>({});
 
   const totalCredits = selectedCourses.reduce((sum, c) => sum + c.credits, 0);
 
+  // Find unchecked/skipped courses
+  const uncheckedCourses = allCourses.filter(c => !selectedCourses.some(sc => sc.id === c.id));
+
   const handleConfirmRegistration = () => {
+    // Validate that NPTEL reasons and files are provided for all skipped courses
+    for (const c of uncheckedCourses) {
+      const details = nptelDetails[c.id];
+      if (!details || !details.comments.trim()) {
+        toast.error(`Please provide NPTEL comments/reason for skipped course: ${c.code}`);
+        return;
+      }
+      if (!details.certificateName) {
+        toast.error(`Please upload NPTEL verification certificate for skipped course: ${c.code}`);
+        return;
+      }
+    }
+
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      onConfirm();
-      onOpenChange(false);
-      toast.success("Semester Course Registration submitted to Faculty Advisor for approval!");
-    }, 700);
+    // Map details to submissions payload
+    const submissions = uncheckedCourses.map(c => ({
+      courseId: c.id,
+      isNptel: true,
+      certificateName: nptelDetails[c.id].certificateName,
+      comments: nptelDetails[c.id].comments
+    }));
+
+    onConfirm(submissions);
+    onOpenChange(false);
+    setIsSubmitting(false);
   };
 
   return (
@@ -80,6 +103,74 @@ export function RegistrationModal({ open, onOpenChange, selectedCourses, onConfi
               ))}
             </div>
           </div>
+
+          {/* NPTEL VERIFICATION FOR SKIPPED COURSES */}
+          {uncheckedCourses.length > 0 && (
+            <div className="p-3.5 rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/20 space-y-3">
+              <span className="font-bold text-amber-700 dark:text-amber-300 block text-xs">
+                ⚠️ skipped Course NPTEL Verification Required:
+              </span>
+              <p className="text-[11px] text-slate-500 leading-normal">
+                You did not select all offered courses. To submit, you must provide equivalent NPTEL details & upload certificates for skipped courses.
+              </p>
+
+              <div className="space-y-3.5 max-h-48 overflow-y-auto pr-1">
+                {uncheckedCourses.map((c) => (
+                  <div key={c.id} className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2.5">
+                    <div className="font-bold text-slate-800 dark:text-slate-200">
+                      {c.code}: {c.name}
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 block uppercase">NPTEL Comments / Reason</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Completed NPTEL Course on Java"
+                        value={nptelDetails[c.id]?.comments || ""}
+                        onChange={(e) => setNptelDetails(prev => ({
+                          ...prev,
+                          [c.id]: {
+                            comments: e.target.value,
+                            certificateName: prev[c.id]?.certificateName || ""
+                          }
+                        }))}
+                        className="w-full h-8 px-2 border rounded-lg text-xs bg-slate-50 focus:ring-1 focus:ring-amber-500 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 block uppercase">Upload Certificate File</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setNptelDetails(prev => ({
+                                ...prev,
+                                [c.id]: {
+                                  comments: prev[c.id]?.comments || "",
+                                  certificateName: file.name
+                                }
+                              }));
+                              toast.success(`Attached ${file.name}`);
+                            }
+                          }}
+                          className="text-[11px] text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[10px] file:font-semibold file:bg-amber-100 file:text-amber-700 hover:file:bg-amber-200 cursor-pointer"
+                        />
+                        {nptelDetails[c.id]?.certificateName && (
+                          <span className="text-[10px] text-emerald-600 font-bold max-w-[120px] truncate">
+                            ✓ {nptelDetails[c.id].certificateName}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
         </div>
 

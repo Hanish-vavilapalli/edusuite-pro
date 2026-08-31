@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRole } from "@/context/role-context";
 import {
   FACULTY_DASHBOARD_DATA_BY_DEPT,
   type FacultyDashboardData,
   type LessonPlanItem,
 } from "@/data/faculty-mock-data";
+import { getFacultyAssignedSections } from "@/lib/mock-examcell-state";
 
 // Subcomponents imports
 import { LessonPlanHeader } from "@/components/dashboard/lesson-plan/lesson-plan-header";
@@ -25,11 +26,104 @@ export const Route = createFileRoute("/faculty/lesson-plan")({
 
 function FacultyLessonPlanPage() {
   const { profile } = useRole();
-  const deptCode = profile.department || "CSE";
+  const deptCode = profile.department || "ECE";
   
   // Retrieve mock data dynamically based on active department
   const dashboardData = (FACULTY_DASHBOARD_DATA_BY_DEPT[deptCode] || FACULTY_DASHBOARD_DATA_BY_DEPT["CSE"]) as FacultyDashboardData;
-  const originalPlans = dashboardData.lessonPlans || [];
+  const activeName = profile.name || profile.personaName || "Amit Rathore";
+
+  // Dynamically resolve assigned sections appointed by Exam Cell for logged-in faculty
+  const assignedSections = useMemo(() => {
+    return getFacultyAssignedSections(activeName);
+  }, [activeName]);
+
+  // Dynamically generate lesson plans ONLY for currently assigned teaching subjects with complete schema support
+  const originalPlans: LessonPlanItem[] = useMemo(() => {
+    return assignedSections.map((sec, idx) => {
+      const typeLower = (sec.courseType || "").toLowerCase();
+      const isIntegrated = typeLower.includes("integrated") || sec.credits >= 4;
+      const isLab = typeLower.includes("lab");
+
+      const typeLabel = isLab ? "Lab" : isIntegrated ? "Integrated" : "Theory";
+      const weeklyHours = isIntegrated ? 5 : isLab ? 4 : 3;
+
+      return {
+        id: `lp-${sec.id || idx}`,
+        code: sec.subjectCode,
+        name: sec.subjectName,
+        teachingMode: typeLabel,
+        type: typeLabel as any,
+        status: "Active" as const,
+        academicYear: "2024-25",
+        semester: `${sec.semester}`,
+        assignedSections: [`${sec.department}-${sec.section}`],
+        sections: [`${sec.department}-${sec.section}`],
+        totalUnits: 5,
+        unitsMapped: 5,
+        completionPercentage: 65,
+        syllabusCoveragePercentage: 65,
+        weeklyHours: weeklyHours,
+        regulation: "R22",
+        classroom: sec.section === "A" ? "EC-101" : "EC-102",
+        credits: sec.credits,
+        teachingMethods: ["Blackboard & Interactive Slides", "Practical Problem Solving", "Case Studies"],
+        timeline: [
+          { date: "2024-08-01", title: "Course Orientation & Syllabus Handout", status: "Completed" },
+          { date: "2024-08-20", title: "Unit 1 Assessment Test", status: "Completed" },
+          { date: "2024-09-15", title: "Mid-Term Examination Review", status: "Scheduled" }
+        ],
+        weeklyPlan: [],
+        monthlyPlan: [],
+        units: [
+          {
+            unitNumber: 1,
+            title: "Introduction & Foundational Concepts",
+            plannedTopicsCount: 8,
+            completedTopicsCount: 8,
+            status: "Completed",
+            startDate: "2024-08-01",
+            endDate: "2024-08-20",
+          },
+          {
+            unitNumber: 2,
+            title: "Core Architecture & Principles",
+            plannedTopicsCount: 10,
+            completedTopicsCount: 7,
+            status: "In Progress",
+            startDate: "2024-08-21",
+            endDate: "2024-09-15",
+          },
+          {
+            unitNumber: 3,
+            title: "Advanced System Operations",
+            plannedTopicsCount: 9,
+            completedTopicsCount: 0,
+            status: "Pending",
+            startDate: "2024-09-16",
+            endDate: "2024-10-10",
+          },
+          {
+            unitNumber: 4,
+            title: "Real-World Applications & Labs",
+            plannedTopicsCount: 8,
+            completedTopicsCount: 0,
+            status: "Pending",
+            startDate: "2024-10-11",
+            endDate: "2024-11-05",
+          },
+          {
+            unitNumber: 5,
+            title: "System Evaluation & Future Trends",
+            plannedTopicsCount: 7,
+            completedTopicsCount: 0,
+            status: "Pending",
+            startDate: "2024-11-06",
+            endDate: "2024-11-30",
+          },
+        ],
+      };
+    }) as LessonPlanItem[];
+  }, [assignedSections]);
 
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { LmsTabType } from "./types";
 import {
   MOCK_LMS_KPIS,
@@ -12,8 +12,8 @@ import {
 } from "./mock-data";
 
 import { LmsDashboardHeader } from "./lms-dashboard";
-import { MyCourses } from "./my-courses";
 import { CourseMaterials } from "./course-materials";
+import { VideoLectures } from "./video-lectures";
 import { Assignments } from "./assignments";
 import { Quizzes } from "./quizzes";
 import { OnlineClasses } from "./online-classes";
@@ -26,12 +26,109 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, BookOpen } from "lucide-react";
 import { toast } from "sonner";
+import api from "@/lib/api";
+import { fetchLMSVideos } from "@/modules/lms/LMSService";
 
 export function StudentLmsModule() {
-  const [activeTab, setActiveTab] = useState<LmsTabType>("my-courses");
+  const [activeTab, setActiveTab] = useState<LmsTabType>("course-materials");
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isEmptyState, setIsEmptyState] = useState(false);
+
+  // DB Data states
+  const [profile, setProfile] = useState<any>(null);
+  const [dbCourses, setDbCourses] = useState<any[]>([]);
+  const [materials, setMaterials] = useState<any[]>([]);
+  const [videos, setVideos] = useState<any[]>([]);
+
+  const loadStudentLMSData = async () => {
+    setIsLoading(true);
+    try {
+      // 1. Fetch Profile
+      const profileRes = await api.get("/api/auth/profile");
+      if (profileRes.data) {
+        setProfile(profileRes.data);
+      }
+
+      // 2. Fetch Registrations
+      const regsRes = await api.get("/api/exams/registrations");
+      const studentId = profileRes.data?.id;
+
+      if (regsRes.data && Array.isArray(regsRes.data) && studentId) {
+        const studentRegs = regsRes.data.filter((r: any) => r.userId === studentId);
+        
+        // Map to CourseItem structure
+        const mappedCourses = studentRegs.map((r: any) => {
+          const c = r.course;
+          
+          let facultyName = "Dr. Arjun Dutta";
+          try {
+            if (c.faculty && c.faculty.startsWith("[")) {
+              const parsed = JSON.parse(c.faculty);
+              if (parsed[0]?.mentor_name) facultyName = parsed[0].mentor_name;
+            } else if (c.faculty) {
+              facultyName = c.faculty;
+            }
+          } catch (e) {}
+
+          return {
+            id: c.id,
+            code: c.code,
+            name: c.name,
+            faculty: facultyName,
+            credits: c.credits,
+            semester: c.semester,
+            status: "Active",
+            completionPct: 80,
+            totalModules: 8,
+            completedModules: 6,
+            syllabusUrl: "#",
+            description: `${c.name} course offered in Semester ${c.semester} for ${c.department || "CSE"} department.`
+          };
+        });
+        setDbCourses(mappedCourses);
+      }
+
+      // 3. Fetch LMS Resources
+      const lmsRes = await api.get("/api/lms/student/resources");
+      if (lmsRes.data && Array.isArray(lmsRes.data)) {
+        const mappedMaterials = lmsRes.data.map((r: any) => ({
+          id: r.id,
+          courseCode: r.subject && r.subject.includes(":") ? r.subject.split(":")[0].trim() : "GEN",
+          courseName: r.subject && r.subject.includes(":") ? r.subject.split(":")[1].trim() : r.subject,
+          category: "PDFs",
+          title: r.title,
+          faculty: r.uploadedBy,
+          uploadDate: r.createdAt,
+          fileType: "PDF",
+          size: r.size || "4.2 MB",
+          downloads: 148,
+          url: r.url || "",
+          description: r.description || "Course study notes provided by department faculty."
+        }));
+        setMaterials(mappedMaterials);
+      }
+
+      // 4. Fetch Video Lectures
+      const vids = await fetchLMSVideos();
+      setVideos(vids);
+    } catch (err) {
+      console.error("Failed to load student LMS details", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadStudentLMSData();
+  }, []);
+
+  // Compute dynamic KPI metrics
+  const dynamicKpis = {
+    ...MOCK_LMS_KPIS,
+    registeredCourses: dbCourses.length || MOCK_LMS_KPIS.registeredCourses,
+    activeCourses: dbCourses.length || MOCK_LMS_KPIS.activeCourses,
+  };
 
   const handleQuickAction = (actionId: string) => {
     switch (actionId) {
@@ -94,7 +191,7 @@ export function StudentLmsModule() {
         <>
           {/* HEADER & TOP KPIS */}
           <LmsDashboardHeader
-            kpis={MOCK_LMS_KPIS}
+            kpis={dynamicKpis}
             activeTab={activeTab}
             onTabChange={setActiveTab}
             searchQuery={searchQuery}
@@ -102,45 +199,23 @@ export function StudentLmsModule() {
             onQuickAction={handleQuickAction}
           />
 
-          {/* MAIN LMS CONTENT WITH SIDEBAR ASSISTANT */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            
-            {/* MAIN TAB CONTENT (3 COLS) */}
-            <div className="lg:col-span-3 space-y-6">
-              {activeTab === "my-courses" && (
-                <MyCourses courses={MOCK_COURSES} searchQuery={searchQuery} onSelectTab={setActiveTab} />
-              )}
+          {/* MAIN LMS CONTENT */}
+          <div className="space-y-6 w-full">
+            {activeTab === "course-materials" && (
+              <CourseMaterials materials={materials} searchQuery={searchQuery} />
+            )}
 
-              {activeTab === "course-materials" && (
-                <CourseMaterials materials={MOCK_MATERIALS} searchQuery={searchQuery} />
-              )}
+            {activeTab === "video-lectures" && (
+              <VideoLectures videos={videos} searchQuery={searchQuery} />
+            )}
 
-              {activeTab === "assignments" && (
-                <Assignments assignments={MOCK_ASSIGNMENTS} searchQuery={searchQuery} />
-              )}
+            {activeTab === "assignments" && (
+              <Assignments searchQuery={searchQuery} />
+            )}
 
-              {activeTab === "quizzes" && (
-                <Quizzes quizzes={MOCK_QUIZZES} searchQuery={searchQuery} />
-              )}
-
-              {activeTab === "online-classes" && (
-                <OnlineClasses classes={MOCK_LIVE_CLASSES} searchQuery={searchQuery} />
-              )}
-
-              {activeTab === "progress" && (
-                <ProgressAnalytics kpis={MOCK_LMS_KPIS} courses={MOCK_COURSES} />
-              )}
-
-              {activeTab === "certificates" && (
-                <Certificates certificates={MOCK_CERTIFICATES} searchQuery={searchQuery} />
-              )}
-            </div>
-
-            {/* SIDEBAR: AI LEARNING ASSISTANT (1 COL) */}
-            <div className="space-y-6">
-              <AiLearningWidget />
-            </div>
-
+            {activeTab === "quizzes" && (
+              <Quizzes quizzes={MOCK_QUIZZES} searchQuery={searchQuery} />
+            )}
           </div>
         </>
       )}
