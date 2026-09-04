@@ -683,7 +683,7 @@ export function ProcurementModuleView() {
                   onClick={() => setIsViewDialogOpen(false)}
                   className="w-full text-xs"
                 >
-                  Close Dossier
+                  Close
                 </Button>
               </DialogFooter>
             </div>

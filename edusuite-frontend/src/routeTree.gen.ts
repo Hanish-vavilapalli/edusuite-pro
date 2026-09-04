@@ -59,6 +59,7 @@ import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as ProcurementRouteImport } from './routes/procurement'
 import { Route as PromotionsRouteImport } from './routes/promotions'
 import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ResourcesRouteImport } from './routes/resources'
 import { Route as ResultsRouteImport } from './routes/results'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -253,6 +254,8 @@ import { Route as StudentsIndexRouteImport } from './routes/students.index'
 import { Route as SuperAdminIndexRouteImport } from './routes/super-admin.index'
 import { Route as SuperAdminAcademicsRouteImport } from './routes/super-admin.academics'
 import { Route as SuperAdminAllClassesAttendanceRouteImport } from './routes/super-admin.all-classes-attendance'
+import { Route as SuperAdminAlumniAnalyticsRouteImport } from './routes/super-admin.alumni-analytics'
+import { Route as SuperAdminApprovalRequestsRouteImport } from './routes/super-admin.approval-requests'
 import { Route as SuperAdminAttendanceMarkRouteImport } from './routes/super-admin.attendance-mark'
 import { Route as SuperAdminCoursesRouteImport } from './routes/super-admin.courses'
 import { Route as SuperAdminDashboardRouteImport } from './routes/super-admin.dashboard'
@@ -260,11 +263,9 @@ import { Route as SuperAdminEmergencyRouteImport } from './routes/super-admin.em
 import { Route as SuperAdminEmergencyAlertsRouteImport } from './routes/super-admin.emergency-alerts'
 import { Route as SuperAdminFacultyRouteImport } from './routes/super-admin.faculty'
 import { Route as SuperAdminFacultyStatusRouteImport } from './routes/super-admin.faculty-status'
-<<<<<<< HEAD
-import { Route as SuperAdminPayrollRouteImport } from './routes/super-admin.payroll'
-=======
 import { Route as SuperAdminLmsRouteImport } from './routes/super-admin.lms'
->>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
+import { Route as SuperAdminPayrollRouteImport } from './routes/super-admin.payroll'
+import { Route as SuperAdminPreAdmissionRouteImport } from './routes/super-admin.pre-admission'
 import { Route as SuperAdminProfileRouteImport } from './routes/super-admin.profile'
 import { Route as SuperAdminSettingsRouteImport } from './routes/super-admin.settings'
 import { Route as SuperAdminStudentsRouteImport } from './routes/super-admin.students'
@@ -915,6 +916,11 @@ const PromotionsRoute = PromotionsRouteImport.update({
 const ReportsRoute = ReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResourcesRoute = ResourcesRouteImport.update({
@@ -1899,6 +1905,18 @@ const SuperAdminAllClassesAttendanceRoute =
     path: '/all-classes-attendance',
     getParentRoute: () => SuperAdminRoute,
   } as any)
+const SuperAdminAlumniAnalyticsRoute =
+  SuperAdminAlumniAnalyticsRouteImport.update({
+    id: '/alumni-analytics',
+    path: '/alumni-analytics',
+    getParentRoute: () => SuperAdminRoute,
+  } as any)
+const SuperAdminApprovalRequestsRoute =
+  SuperAdminApprovalRequestsRouteImport.update({
+    id: '/approval-requests',
+    path: '/approval-requests',
+    getParentRoute: () => SuperAdminRoute,
+  } as any)
 const SuperAdminAttendanceMarkRoute =
   SuperAdminAttendanceMarkRouteImport.update({
     id: '/attendance-mark',
@@ -1936,15 +1954,19 @@ const SuperAdminFacultyStatusRoute = SuperAdminFacultyStatusRouteImport.update({
   path: '/faculty-status',
   getParentRoute: () => SuperAdminRoute,
 } as any)
-<<<<<<< HEAD
-const SuperAdminPayrollRoute = SuperAdminPayrollRouteImport.update({
-  id: '/payroll',
-  path: '/payroll',
-=======
 const SuperAdminLmsRoute = SuperAdminLmsRouteImport.update({
   id: '/lms',
   path: '/lms',
->>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
+  getParentRoute: () => SuperAdminRoute,
+} as any)
+const SuperAdminPayrollRoute = SuperAdminPayrollRouteImport.update({
+  id: '/payroll',
+  path: '/payroll',
+  getParentRoute: () => SuperAdminRoute,
+} as any)
+const SuperAdminPreAdmissionRoute = SuperAdminPreAdmissionRouteImport.update({
+  id: '/pre-admission',
+  path: '/pre-admission',
   getParentRoute: () => SuperAdminRoute,
 } as any)
 const SuperAdminProfileRoute = SuperAdminProfileRouteImport.update({
@@ -4309,6 +4331,7 @@ export interface FileRoutesByFullPath {
   '/procurement': typeof ProcurementRoute
   '/promotions': typeof PromotionsRoute
   '/reports': typeof ReportsRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/resources': typeof ResourcesRoute
   '/results': typeof ResultsRoute
   '/settings': typeof SettingsRoute
@@ -4484,6 +4507,8 @@ export interface FileRoutesByFullPath {
   '/student/webinars': typeof StudentWebinarsRoute
   '/super-admin/academics': typeof SuperAdminAcademicsRouteWithChildren
   '/super-admin/all-classes-attendance': typeof SuperAdminAllClassesAttendanceRoute
+  '/super-admin/alumni-analytics': typeof SuperAdminAlumniAnalyticsRoute
+  '/super-admin/approval-requests': typeof SuperAdminApprovalRequestsRoute
   '/super-admin/attendance-mark': typeof SuperAdminAttendanceMarkRoute
   '/super-admin/courses': typeof SuperAdminCoursesRoute
   '/super-admin/dashboard': typeof SuperAdminDashboardRoute
@@ -4491,11 +4516,9 @@ export interface FileRoutesByFullPath {
   '/super-admin/emergency-alerts': typeof SuperAdminEmergencyAlertsRoute
   '/super-admin/faculty': typeof SuperAdminFacultyRoute
   '/super-admin/faculty-status': typeof SuperAdminFacultyStatusRoute
-<<<<<<< HEAD
-  '/super-admin/payroll': typeof SuperAdminPayrollRoute
-=======
   '/super-admin/lms': typeof SuperAdminLmsRoute
->>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
+  '/super-admin/payroll': typeof SuperAdminPayrollRoute
+  '/super-admin/pre-admission': typeof SuperAdminPreAdmissionRoute
   '/super-admin/profile': typeof SuperAdminProfileRoute
   '/super-admin/settings': typeof SuperAdminSettingsRoute
   '/super-admin/students': typeof SuperAdminStudentsRoute
@@ -4953,6 +4976,7 @@ export interface FileRoutesByTo {
   '/procurement': typeof ProcurementRoute
   '/promotions': typeof PromotionsRoute
   '/reports': typeof ReportsRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/resources': typeof ResourcesRoute
   '/results': typeof ResultsRoute
   '/settings': typeof SettingsRoute
@@ -5114,6 +5138,8 @@ export interface FileRoutesByTo {
   '/student/webinars': typeof StudentWebinarsRoute
   '/super-admin/academics': typeof SuperAdminAcademicsRouteWithChildren
   '/super-admin/all-classes-attendance': typeof SuperAdminAllClassesAttendanceRoute
+  '/super-admin/alumni-analytics': typeof SuperAdminAlumniAnalyticsRoute
+  '/super-admin/approval-requests': typeof SuperAdminApprovalRequestsRoute
   '/super-admin/attendance-mark': typeof SuperAdminAttendanceMarkRoute
   '/super-admin/courses': typeof SuperAdminCoursesRoute
   '/super-admin/dashboard': typeof SuperAdminDashboardRoute
@@ -5121,11 +5147,9 @@ export interface FileRoutesByTo {
   '/super-admin/emergency-alerts': typeof SuperAdminEmergencyAlertsRoute
   '/super-admin/faculty': typeof SuperAdminFacultyRoute
   '/super-admin/faculty-status': typeof SuperAdminFacultyStatusRoute
-<<<<<<< HEAD
-  '/super-admin/payroll': typeof SuperAdminPayrollRoute
-=======
   '/super-admin/lms': typeof SuperAdminLmsRoute
->>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
+  '/super-admin/payroll': typeof SuperAdminPayrollRoute
+  '/super-admin/pre-admission': typeof SuperAdminPreAdmissionRoute
   '/super-admin/profile': typeof SuperAdminProfileRoute
   '/super-admin/settings': typeof SuperAdminSettingsRoute
   '/super-admin/students': typeof SuperAdminStudentsRoute
@@ -5599,6 +5623,7 @@ export interface FileRoutesById {
   '/procurement': typeof ProcurementRoute
   '/promotions': typeof PromotionsRoute
   '/reports': typeof ReportsRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/resources': typeof ResourcesRoute
   '/results': typeof ResultsRoute
   '/settings': typeof SettingsRoute
@@ -5774,6 +5799,8 @@ export interface FileRoutesById {
   '/student/webinars': typeof StudentWebinarsRoute
   '/super-admin/academics': typeof SuperAdminAcademicsRouteWithChildren
   '/super-admin/all-classes-attendance': typeof SuperAdminAllClassesAttendanceRoute
+  '/super-admin/alumni-analytics': typeof SuperAdminAlumniAnalyticsRoute
+  '/super-admin/approval-requests': typeof SuperAdminApprovalRequestsRoute
   '/super-admin/attendance-mark': typeof SuperAdminAttendanceMarkRoute
   '/super-admin/courses': typeof SuperAdminCoursesRoute
   '/super-admin/dashboard': typeof SuperAdminDashboardRoute
@@ -5781,11 +5808,9 @@ export interface FileRoutesById {
   '/super-admin/emergency-alerts': typeof SuperAdminEmergencyAlertsRoute
   '/super-admin/faculty': typeof SuperAdminFacultyRoute
   '/super-admin/faculty-status': typeof SuperAdminFacultyStatusRoute
-<<<<<<< HEAD
-  '/super-admin/payroll': typeof SuperAdminPayrollRoute
-=======
   '/super-admin/lms': typeof SuperAdminLmsRoute
->>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
+  '/super-admin/payroll': typeof SuperAdminPayrollRoute
+  '/super-admin/pre-admission': typeof SuperAdminPreAdmissionRoute
   '/super-admin/profile': typeof SuperAdminProfileRoute
   '/super-admin/settings': typeof SuperAdminSettingsRoute
   '/super-admin/students': typeof SuperAdminStudentsRoute
@@ -6260,6 +6285,7 @@ export interface FileRouteTypes {
     | '/procurement'
     | '/promotions'
     | '/reports'
+    | '/reset-password'
     | '/resources'
     | '/results'
     | '/settings'
@@ -6435,6 +6461,8 @@ export interface FileRouteTypes {
     | '/student/webinars'
     | '/super-admin/academics'
     | '/super-admin/all-classes-attendance'
+    | '/super-admin/alumni-analytics'
+    | '/super-admin/approval-requests'
     | '/super-admin/attendance-mark'
     | '/super-admin/courses'
     | '/super-admin/dashboard'
@@ -6442,11 +6470,9 @@ export interface FileRouteTypes {
     | '/super-admin/emergency-alerts'
     | '/super-admin/faculty'
     | '/super-admin/faculty-status'
-<<<<<<< HEAD
-    | '/super-admin/payroll'
-=======
     | '/super-admin/lms'
->>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
+    | '/super-admin/payroll'
+    | '/super-admin/pre-admission'
     | '/super-admin/profile'
     | '/super-admin/settings'
     | '/super-admin/students'
@@ -6904,6 +6930,7 @@ export interface FileRouteTypes {
     | '/procurement'
     | '/promotions'
     | '/reports'
+    | '/reset-password'
     | '/resources'
     | '/results'
     | '/settings'
@@ -7065,6 +7092,8 @@ export interface FileRouteTypes {
     | '/student/webinars'
     | '/super-admin/academics'
     | '/super-admin/all-classes-attendance'
+    | '/super-admin/alumni-analytics'
+    | '/super-admin/approval-requests'
     | '/super-admin/attendance-mark'
     | '/super-admin/courses'
     | '/super-admin/dashboard'
@@ -7072,11 +7101,9 @@ export interface FileRouteTypes {
     | '/super-admin/emergency-alerts'
     | '/super-admin/faculty'
     | '/super-admin/faculty-status'
-<<<<<<< HEAD
-    | '/super-admin/payroll'
-=======
     | '/super-admin/lms'
->>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
+    | '/super-admin/payroll'
+    | '/super-admin/pre-admission'
     | '/super-admin/profile'
     | '/super-admin/settings'
     | '/super-admin/students'
@@ -7549,6 +7576,7 @@ export interface FileRouteTypes {
     | '/procurement'
     | '/promotions'
     | '/reports'
+    | '/reset-password'
     | '/resources'
     | '/results'
     | '/settings'
@@ -7724,6 +7752,8 @@ export interface FileRouteTypes {
     | '/student/webinars'
     | '/super-admin/academics'
     | '/super-admin/all-classes-attendance'
+    | '/super-admin/alumni-analytics'
+    | '/super-admin/approval-requests'
     | '/super-admin/attendance-mark'
     | '/super-admin/courses'
     | '/super-admin/dashboard'
@@ -7731,11 +7761,9 @@ export interface FileRouteTypes {
     | '/super-admin/emergency-alerts'
     | '/super-admin/faculty'
     | '/super-admin/faculty-status'
-<<<<<<< HEAD
-    | '/super-admin/payroll'
-=======
     | '/super-admin/lms'
->>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
+    | '/super-admin/payroll'
+    | '/super-admin/pre-admission'
     | '/super-admin/profile'
     | '/super-admin/settings'
     | '/super-admin/students'
@@ -8209,6 +8237,7 @@ export interface RootRouteChildren {
   ProcurementRoute: typeof ProcurementRoute
   PromotionsRoute: typeof PromotionsRoute
   ReportsRoute: typeof ReportsRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   ResourcesRoute: typeof ResourcesRoute
   ResultsRoute: typeof ResultsRoute
   SettingsRoute: typeof SettingsRoute
@@ -8575,6 +8604,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/resources': {
@@ -9935,6 +9971,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SuperAdminAllClassesAttendanceRouteImport
       parentRoute: typeof SuperAdminRoute
     }
+    '/super-admin/alumni-analytics': {
+      id: '/super-admin/alumni-analytics'
+      path: '/alumni-analytics'
+      fullPath: '/super-admin/alumni-analytics'
+      preLoaderRoute: typeof SuperAdminAlumniAnalyticsRouteImport
+      parentRoute: typeof SuperAdminRoute
+    }
+    '/super-admin/approval-requests': {
+      id: '/super-admin/approval-requests'
+      path: '/approval-requests'
+      fullPath: '/super-admin/approval-requests'
+      preLoaderRoute: typeof SuperAdminApprovalRequestsRouteImport
+      parentRoute: typeof SuperAdminRoute
+    }
     '/super-admin/attendance-mark': {
       id: '/super-admin/attendance-mark'
       path: '/attendance-mark'
@@ -9984,19 +10034,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SuperAdminFacultyStatusRouteImport
       parentRoute: typeof SuperAdminRoute
     }
-<<<<<<< HEAD
-    '/super-admin/payroll': {
-      id: '/super-admin/payroll'
-      path: '/payroll'
-      fullPath: '/super-admin/payroll'
-      preLoaderRoute: typeof SuperAdminPayrollRouteImport
-=======
     '/super-admin/lms': {
       id: '/super-admin/lms'
       path: '/lms'
       fullPath: '/super-admin/lms'
       preLoaderRoute: typeof SuperAdminLmsRouteImport
->>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
+      parentRoute: typeof SuperAdminRoute
+    }
+    '/super-admin/payroll': {
+      id: '/super-admin/payroll'
+      path: '/payroll'
+      fullPath: '/super-admin/payroll'
+      preLoaderRoute: typeof SuperAdminPayrollRouteImport
+      parentRoute: typeof SuperAdminRoute
+    }
+    '/super-admin/pre-admission': {
+      id: '/super-admin/pre-admission'
+      path: '/pre-admission'
+      fullPath: '/super-admin/pre-admission'
+      preLoaderRoute: typeof SuperAdminPreAdmissionRouteImport
       parentRoute: typeof SuperAdminRoute
     }
     '/super-admin/profile': {
@@ -14350,6 +14406,8 @@ const SuperAdminAcademicsRouteWithChildren =
 interface SuperAdminRouteChildren {
   SuperAdminAcademicsRoute: typeof SuperAdminAcademicsRouteWithChildren
   SuperAdminAllClassesAttendanceRoute: typeof SuperAdminAllClassesAttendanceRoute
+  SuperAdminAlumniAnalyticsRoute: typeof SuperAdminAlumniAnalyticsRoute
+  SuperAdminApprovalRequestsRoute: typeof SuperAdminApprovalRequestsRoute
   SuperAdminAttendanceMarkRoute: typeof SuperAdminAttendanceMarkRoute
   SuperAdminCoursesRoute: typeof SuperAdminCoursesRoute
   SuperAdminDashboardRoute: typeof SuperAdminDashboardRoute
@@ -14357,11 +14415,9 @@ interface SuperAdminRouteChildren {
   SuperAdminEmergencyAlertsRoute: typeof SuperAdminEmergencyAlertsRoute
   SuperAdminFacultyRoute: typeof SuperAdminFacultyRoute
   SuperAdminFacultyStatusRoute: typeof SuperAdminFacultyStatusRoute
-<<<<<<< HEAD
-  SuperAdminPayrollRoute: typeof SuperAdminPayrollRoute
-=======
   SuperAdminLmsRoute: typeof SuperAdminLmsRoute
->>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
+  SuperAdminPayrollRoute: typeof SuperAdminPayrollRoute
+  SuperAdminPreAdmissionRoute: typeof SuperAdminPreAdmissionRoute
   SuperAdminProfileRoute: typeof SuperAdminProfileRoute
   SuperAdminSettingsRoute: typeof SuperAdminSettingsRoute
   SuperAdminStudentsRoute: typeof SuperAdminStudentsRoute
@@ -14373,6 +14429,8 @@ interface SuperAdminRouteChildren {
 const SuperAdminRouteChildren: SuperAdminRouteChildren = {
   SuperAdminAcademicsRoute: SuperAdminAcademicsRouteWithChildren,
   SuperAdminAllClassesAttendanceRoute: SuperAdminAllClassesAttendanceRoute,
+  SuperAdminAlumniAnalyticsRoute: SuperAdminAlumniAnalyticsRoute,
+  SuperAdminApprovalRequestsRoute: SuperAdminApprovalRequestsRoute,
   SuperAdminAttendanceMarkRoute: SuperAdminAttendanceMarkRoute,
   SuperAdminCoursesRoute: SuperAdminCoursesRoute,
   SuperAdminDashboardRoute: SuperAdminDashboardRoute,
@@ -14380,11 +14438,9 @@ const SuperAdminRouteChildren: SuperAdminRouteChildren = {
   SuperAdminEmergencyAlertsRoute: SuperAdminEmergencyAlertsRoute,
   SuperAdminFacultyRoute: SuperAdminFacultyRoute,
   SuperAdminFacultyStatusRoute: SuperAdminFacultyStatusRoute,
-<<<<<<< HEAD
-  SuperAdminPayrollRoute: SuperAdminPayrollRoute,
-=======
   SuperAdminLmsRoute: SuperAdminLmsRoute,
->>>>>>> d12441fb36b1b8317f13607b9383394f7205352b
+  SuperAdminPayrollRoute: SuperAdminPayrollRoute,
+  SuperAdminPreAdmissionRoute: SuperAdminPreAdmissionRoute,
   SuperAdminProfileRoute: SuperAdminProfileRoute,
   SuperAdminSettingsRoute: SuperAdminSettingsRoute,
   SuperAdminStudentsRoute: SuperAdminStudentsRoute,
@@ -14480,6 +14536,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProcurementRoute: ProcurementRoute,
   PromotionsRoute: PromotionsRoute,
   ReportsRoute: ReportsRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   ResourcesRoute: ResourcesRoute,
   ResultsRoute: ResultsRoute,
   SettingsRoute: SettingsRoute,

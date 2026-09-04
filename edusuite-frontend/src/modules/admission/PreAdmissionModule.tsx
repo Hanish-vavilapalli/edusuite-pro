@@ -211,7 +211,7 @@ export function PreAdmissionCandidatePortal() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
+    <div className="pre-admission-portal-root p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
         <div className="flex items-center gap-3">
@@ -353,26 +353,32 @@ export function PreAdmissionCandidatePortal() {
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {Object.entries(trackedApplication.documents).map(([key, doc]) => (
-                    <div key={key} className="p-3 rounded-xl border border-border/60 bg-muted/20 flex items-center justify-between text-xs">
-                      <span className="font-medium text-foreground">{doc.name}</span>
-                      <Badge
-                        variant="outline"
-                        className={
-                          doc.status === "Verified"
-                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30 font-bold"
-                            : doc.status === "Rejected"
-                            ? "bg-rose-500/10 text-rose-600 border-rose-500/30 font-bold"
-                            : "bg-amber-500/10 text-amber-600 border-amber-500/30 font-bold"
-                        }
-                      >
-                        {doc.status === "Verified" && <Check className="size-3 mr-1" />}
-                        {doc.status === "Rejected" && <XCircle className="size-3 mr-1" />}
-                        {doc.status === "Pending" && <Clock className="size-3 mr-1" />}
-                        {doc.status}
-                      </Badge>
+                  {trackedApplication.documents && typeof trackedApplication.documents === "object" ? (
+                    Object.entries(trackedApplication.documents).map(([key, doc]: [string, any]) => (
+                      <div key={key} className="p-3 rounded-xl border border-border/60 bg-muted/20 flex items-center justify-between text-xs">
+                        <span className="font-medium text-foreground">{typeof doc === "object" && doc ? doc.name || key : String(doc)}</span>
+                        <Badge
+                          variant="outline"
+                          className={
+                            typeof doc === "object" && doc?.status === "Verified"
+                              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30 font-bold"
+                              : typeof doc === "object" && doc?.status === "Rejected"
+                              ? "bg-rose-500/10 text-rose-600 border-rose-500/30 font-bold"
+                              : "bg-amber-500/10 text-amber-600 border-amber-500/30 font-bold"
+                          }
+                        >
+                          {typeof doc === "object" && doc?.status === "Verified" && <Check className="size-3 mr-1" />}
+                          {typeof doc === "object" && doc?.status === "Rejected" && <XCircle className="size-3 mr-1" />}
+                          {typeof doc === "object" && doc?.status === "Pending" && <Clock className="size-3 mr-1" />}
+                          {typeof doc === "object" && doc?.status ? doc.status : "Uploaded"}
+                        </Badge>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-3 rounded-xl border border-border/60 bg-muted/20 text-xs text-muted-foreground col-span-2">
+                      {String(trackedApplication.documents || "No documents uploaded.")}
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>

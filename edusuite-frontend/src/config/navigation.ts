@@ -133,9 +133,9 @@ export const navigation: NavSection[] = [
     label: "Menu",
     items: [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-      { title: "Approval Workflows", url: "/approval-workflows", icon: GitBranch, badge: "Diagram" },
-      { title: "AI & Analytics", url: "/ai-analytics", icon: BarChart3, roles: ["super-admin", "staff", "student", "parent"] },
-      { title: "Emergency Broadcast", url: "/emergency", icon: Siren, roles: ["super-admin", "staff"], badge: "Instant" },
+      { title: "Approval Workflows", url: "/approval-workflows", icon: GitBranch, badge: "Diagram", roles: ["super-admin"] },
+      { title: "AI & Analytics", url: "/ai-analytics", icon: BarChart3, roles: ["super-admin"] },
+      { title: "Emergency Broadcast", url: "/emergency", icon: Siren, roles: ["super-admin"], badge: "Instant" },
     ],
   },
   {
@@ -196,6 +196,24 @@ export const navigation: NavSection[] = [
           { title: "Analytics", url: "/alumni?tab=analytics" },
         ],
       },
+      {
+        title: "Alumni Intelligence",
+        url: "/super-admin/alumni-analytics",
+        icon: Brain,
+        roles: ["super-admin", "staff"],
+        children: [
+          { title: "Overview", url: "/super-admin/alumni-analytics?tab=overview" },
+          { title: "Demographics", url: "/super-admin/alumni-analytics?tab=demographics" },
+          { title: "Career Intelligence", url: "/super-admin/alumni-analytics?tab=careers" },
+          { title: "Engagement", url: "/super-admin/alumni-analytics?tab=engagement" },
+          { title: "Mentorship", url: "/super-admin/alumni-analytics?tab=mentorship" },
+          { title: "Referrals", url: "/super-admin/alumni-analytics?tab=referrals" },
+          { title: "Donations", url: "/super-admin/alumni-analytics?tab=donations" },
+          { title: "Events", url: "/super-admin/alumni-analytics?tab=events" },
+          { title: "IQAC Feedback", url: "/super-admin/alumni-analytics?tab=feedback" },
+          { title: "Department Comparative", url: "/super-admin/alumni-analytics?tab=departments" }
+        ],
+      },
     ],
   },
 ];
@@ -208,6 +226,7 @@ function resolveUrlForUser(url: string, user: UserPermissionContext, title?: str
     url.startsWith("/staff") ||
     url.startsWith("/alumni") ||
     url.startsWith("/super-admin") ||
+    url.startsWith("/super-admin/alumni-analytics") ||
     [
       "/employee-management",
       "/leave",
@@ -364,6 +383,7 @@ export const SUPER_ADMIN_NAVIGATION: NavSection[] = [
     label: "Super Admin Control Center",
     items: [
       { title: "Super Admin Cockpit", url: "/super-admin/dashboard", icon: ShieldCheck, badge: "Master" },
+      { title: "Acceptance Requests", url: "/super-admin/approval-requests", icon: CheckSquare, badge: "Pending" },
       { title: "Emergency Broadcast", url: "/emergency", icon: Siren, badge: "Instant" },
       { title: "Approval Workflows", url: "/approval-workflows", icon: GitBranch, badge: "Diagram" },
       { title: "AI System Health", url: "/ai-analytics", icon: BarChart3 },
@@ -372,7 +392,7 @@ export const SUPER_ADMIN_NAVIGATION: NavSection[] = [
   {
     label: "Academics & Admissions",
     items: [
-      { title: "Pre-Admission Portal", url: "/pre-admission", icon: School },
+      { title: "Pre-Admission Portal", url: "/super-admin/pre-admission", icon: School },
       { title: "Admission Office", url: "/admission", icon: GraduationCap },
       { title: "Academic Management", url: "/academics", icon: GraduationCap },
       { title: "Students Directory", url: "/students", icon: Users },

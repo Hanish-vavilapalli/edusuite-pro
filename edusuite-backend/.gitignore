@@ -6,6 +6,7 @@ dist
 scratch_*.ts
 
 # InsForge & AI agent skills
+.local_pg_data
 .insforge
 .agent
 .agents

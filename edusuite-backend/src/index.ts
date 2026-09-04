@@ -5,6 +5,8 @@ import dotenv from "dotenv";
 // Load environment configurations
 dotenv.config();
 
+import { prisma } from "./db";
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 

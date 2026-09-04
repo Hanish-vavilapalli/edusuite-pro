@@ -22,23 +22,37 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { navigationForUser } from "@/config/navigation";
+import { fetchApprovalStats } from "@/modules/approval/ApprovalService";
 import { useRole } from "@/context/role-context";
 import { cn } from "@/lib/utils";
+import { useEffect } from "react";
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { role, flags, department, externalPersona, featureFlags, profile } = useRole();
   const [query, setQuery] = useState("");
+  const [pendingCount, setPendingCount] = useState<number | null>(null);
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const href = useRouterState({ select: (r) => r.location.href });
+
+  useEffect(() => {
+    fetchApprovalStats().then((s) => {
+      if (s) setPendingCount(s.superAdminPendingCount);
+    });
+  }, [pathname]);
 
   const sections = navigationForUser({ role, flags, department, externalPersona, featureFlags }, pathname)
     .map((section) => ({
       ...section,
-      items: section.items.filter((item) =>
-        item.title.toLowerCase().includes(query.trim().toLowerCase()),
-      ),
+      items: section.items
+        .filter((item) => item.title.toLowerCase().includes(query.trim().toLowerCase()))
+        .map((item) => {
+          if (item.title === "Acceptance Requests" && pendingCount !== null) {
+            return { ...item, badge: `${pendingCount}` };
+          }
+          return item;
+        }),
     }))
     .filter((section) => section.items.length > 0);
 

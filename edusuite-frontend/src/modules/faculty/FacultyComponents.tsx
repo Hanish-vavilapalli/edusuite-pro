@@ -146,6 +146,8 @@ export function FacultyModuleView({ initialTab = "faculty-status" }: { initialTa
 
   // Feature State 1: Faculty Live Status Matrix
   const [facultyStatuses, setFacultyStatuses] = useState<LiveFacultyStatus[]>(INITIAL_FACULTY_STATUS);
+  const [liveStatusLoading, setLiveStatusLoading] = useState<boolean>(false);
+  const [liveStatusError, setLiveStatusError] = useState<boolean>(false);
   const [selectedPeriod, setSelectedPeriod] = useState<number>(2);
 
   // Modal State for Faculty Full-Day Timetable
@@ -258,20 +260,25 @@ export function FacultyModuleView({ initialTab = "faculty-status" }: { initialTa
     loadData();
   }, [selectedDepartment, currentPage, search, selectedDesig, selectedQual, selectedExp, selectedStatus, sortKey, sortOrder]);
 
-  // Fetch Live Faculty Status Matrix for selectedPeriod
+  // Fetch Live Faculty Status Matrix for selectedPeriod, department & search
   useEffect(() => {
     const loadLiveStatus = async () => {
+      setLiveStatusLoading(true);
+      setLiveStatusError(false);
       try {
-        const statuses = await fetchLiveFacultyStatus(selectedPeriod);
-        if (statuses && statuses.length > 0) {
-          setFacultyStatuses(statuses);
-        }
-      } catch {}
+        const statuses = await fetchLiveFacultyStatus(selectedPeriod, selectedDeptFilter, search);
+        setFacultyStatuses(statuses || []);
+      } catch (err) {
+        setLiveStatusError(true);
+      } finally {
+        setLiveStatusLoading(false);
+      }
     };
+
     if (activeSubpart === "faculty-status") {
       loadLiveStatus();
     }
-  }, [selectedPeriod, activeSubpart]);
+  }, [selectedPeriod, selectedDeptFilter, search, activeSubpart]);
 
   // Handlers
   const handleSort = (key: keyof FacultyRecord) => {
@@ -453,10 +460,32 @@ export function FacultyModuleView({ initialTab = "faculty-status" }: { initialTa
   const filteredFacultyStatus = useMemo(() => {
     return facultyStatuses.filter((f) => {
       const matchesSearch =
-        f.name.toLowerCase().includes(search.toLowerCase()) ||
-        f.subject.toLowerCase().includes(search.toLowerCase()) ||
-        f.currentClass.toLowerCase().includes(search.toLowerCase());
-      const matchesDept = selectedDeptFilter === "All Departments" || f.department === selectedDeptFilter;
+        !search ||
+        (f.name || "").toLowerCase().includes(search.toLowerCase()) ||
+        (f.subject || "").toLowerCase().includes(search.toLowerCase()) ||
+        (f.currentClass || "").toLowerCase().includes(search.toLowerCase()) ||
+        (f.department || "").toLowerCase().includes(search.toLowerCase());
+
+      const dbDept = (f.department || "").trim().toLowerCase();
+      const filterDept = selectedDeptFilter.trim().toLowerCase();
+
+      let matchesDept =
+        selectedDeptFilter === "All Departments" ||
+        selectedDeptFilter === "All" ||
+        dbDept === filterDept ||
+        dbDept.includes(filterDept) ||
+        filterDept.includes(dbDept);
+
+      if (!matchesDept) {
+        if ((filterDept === "cse" || filterDept === "computer science") && (dbDept.includes("computer science") || dbDept.includes("cse"))) matchesDept = true;
+        else if ((filterDept === "ece" || filterDept === "electronics") && (dbDept.includes("electronics") || dbDept.includes("ece"))) matchesDept = true;
+        else if ((filterDept === "eee" || filterDept === "electrical") && (dbDept.includes("electrical") || dbDept.includes("eee"))) matchesDept = true;
+        else if ((filterDept === "me" || filterDept === "mechanical") && (dbDept.includes("mechanical") || dbDept.includes("me"))) matchesDept = true;
+        else if (filterDept === "civil" && dbDept.includes("civil")) matchesDept = true;
+        else if ((filterDept === "it" || filterDept === "information technology") && (dbDept.includes("information technology") || dbDept.includes("it"))) matchesDept = true;
+        else if ((filterDept.includes("ai") || filterDept.includes("ml") || filterDept.includes("ds")) && (dbDept.includes("artificial intelligence") || dbDept.includes("machine learning") || dbDept.includes("data science") || dbDept.includes("ai"))) matchesDept = true;
+      }
+
       return matchesSearch && matchesDept;
     });
   }, [facultyStatuses, search, selectedDeptFilter]);
@@ -874,6 +903,10 @@ export function FacultyModuleView({ initialTab = "faculty-status" }: { initialTa
             </div>
 
             <div className="flex items-center gap-2">
+              <Badge variant="outline" className="px-3 py-1.5 text-xs font-mono font-bold border-primary/30 text-primary bg-primary/5 shrink-0">
+                {filteredFacultyStatus.length} Faculty
+              </Badge>
+
               <Select value={selectedDeptFilter} onValueChange={setSelectedDeptFilter}>
                 <SelectTrigger className="h-9 text-xs w-[160px] rounded-xl"><SelectValue placeholder="Department" /></SelectTrigger>
                 <SelectContent>
@@ -887,69 +920,95 @@ export function FacultyModuleView({ initialTab = "faculty-status" }: { initialTa
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredFacultyStatus.map((f) => (
-              <div
-                key={f.id}
-                onClick={() => handleOpenFacultySchedule(f.name)}
-                className="p-4 rounded-2xl border border-border/80 bg-card space-y-3 shadow-sm hover:border-primary hover:shadow-md transition-all cursor-pointer group relative"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
-                      {f.name} <ExternalLink className="size-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
-                    </h3>
-                    <p className="text-xs text-muted-foreground font-mono">{f.department} Department</p>
-                  </div>
-                  {f.status === "FREE" && (
-                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300 font-bold">
-                      🟢 FREE
-                    </Badge>
-                  )}
-                  {f.status === "IN CLASS / WORKING" && (
-                    <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-300 font-bold">
-                      🔵 IN CLASS
-                    </Badge>
-                  )}
-                  {f.status === "ON LEAVE" && (
-                    <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border-rose-300 font-bold">
-                      🔴 ON LEAVE
-                    </Badge>
-                  )}
-                </div>
-
-                {f.status === "IN CLASS / WORKING" && (
-                  <div className="p-3 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-900/30 text-xs space-y-1">
-                    <p className="font-bold text-blue-900 dark:text-blue-300">{f.subject}</p>
-                    <div className="flex items-center justify-between text-muted-foreground font-mono text-[0.7rem] pt-1">
-                      <span>Class: <strong className="text-foreground">{f.currentClass}</strong></span>
-                      <span>Room: <strong className="text-foreground">{f.roomNo}</strong></span>
+          {liveStatusLoading ? (
+            <div className="p-12 text-center text-xs text-muted-foreground flex flex-col items-center gap-2 border rounded-2xl bg-card">
+              <RefreshCw className="size-6 animate-spin text-primary" />
+              Loading real-time faculty status matrix from InsForge PostgreSQL...
+            </div>
+          ) : liveStatusError ? (
+            <div className="p-12 text-center text-xs text-rose-600 border border-rose-200 dark:border-rose-900 rounded-2xl bg-rose-50/50 dark:bg-rose-950/20 space-y-3">
+              <p className="font-semibold">Unable to load live faculty status from database.</p>
+              <Button size="sm" variant="outline" onClick={() => setSelectedPeriod(selectedPeriod)} className="text-xs">
+                Retry Connection
+              </Button>
+            </div>
+          ) : filteredFacultyStatus.length === 0 ? (
+            <div className="p-12 text-center text-xs text-muted-foreground border rounded-2xl bg-card">
+              No faculty members found for the selected department/filter.
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredFacultyStatus.map((f) => (
+                <div
+                  key={f.id}
+                  onClick={() => handleOpenFacultySchedule(f.name)}
+                  className="p-4 rounded-2xl border border-border/80 bg-card space-y-3 shadow-sm hover:border-primary hover:shadow-md transition-all cursor-pointer group relative"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[0.65rem] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-bold border border-border/60">
+                          {f.rollNumber || `FAC-${f.department.slice(0, 3)}`}
+                        </span>
+                        <span className="text-[0.68rem] text-primary font-semibold">{f.designation || "Faculty Member"}</span>
+                      </div>
+                      <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5 pt-0.5">
+                        {f.name} <ExternalLink className="size-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                      </h3>
+                      <p className="text-xs text-muted-foreground font-mono">{f.department} Department</p>
+                      {f.email && <p className="text-[0.68rem] text-muted-foreground/80 truncate max-w-[200px]">{f.email}</p>}
                     </div>
-                    <p className="text-[0.68rem] font-mono text-blue-600 dark:text-blue-400">Slot: {f.timeSlot}</p>
-                  </div>
-                )}
 
-                {f.status === "FREE" && (
-                  <div className="p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/50 text-xs">
-                    <p className="text-emerald-700 dark:text-emerald-300 font-medium">Unassigned in Period {selectedPeriod}</p>
-                    <p className="text-[0.68rem] text-muted-foreground">Available for proxy / substitution</p>
+                    {f.status === "FREE" && (
+                      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300 font-bold shrink-0">
+                        🟢 FREE
+                      </Badge>
+                    )}
+                    {f.status === "IN CLASS / WORKING" && (
+                      <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-300 font-bold shrink-0">
+                        🔵 IN CLASS
+                      </Badge>
+                    )}
+                    {f.status === "ON LEAVE" && (
+                      <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border-rose-300 font-bold shrink-0">
+                        🔴 ON LEAVE
+                      </Badge>
+                    )}
                   </div>
-                )}
 
-                {f.status === "ON LEAVE" && (
-                  <div className="p-3 rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200/50 text-xs">
-                    <p className="text-rose-700 dark:text-rose-300 font-semibold">{f.leaveReason || "Approved Leave"}</p>
-                    <p className="text-[0.68rem] text-muted-foreground">Substitute assigned by HOD</p>
+                  {f.status === "IN CLASS / WORKING" && (
+                    <div className="p-3 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-900/30 text-xs space-y-1">
+                      <p className="font-bold text-blue-900 dark:text-blue-300">{f.subject}</p>
+                      <div className="flex items-center justify-between text-muted-foreground font-mono text-[0.7rem] pt-1">
+                        <span>Master Timetable Class: <strong className="text-foreground">{f.currentClass}</strong></span>
+                        <span>Room: <strong className="text-foreground">{f.roomNo}</strong></span>
+                      </div>
+                      <p className="text-[0.68rem] font-mono text-blue-600 dark:text-blue-400">Slot: {f.timeSlot}</p>
+                    </div>
+                  )}
+
+                  {f.status === "FREE" && (
+                    <div className="p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/50 text-xs">
+                      <p className="text-emerald-700 dark:text-emerald-300 font-medium">Unassigned in Period {selectedPeriod}</p>
+                      <p className="text-[0.68rem] text-muted-foreground">Available for proxy / substitution</p>
+                    </div>
+                  )}
+
+                  {f.status === "ON LEAVE" && (
+                    <div className="p-3 rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200/50 text-xs">
+                      <p className="text-rose-700 dark:text-rose-300 font-semibold">{f.leaveReason || "Approved Leave"}</p>
+                      <p className="text-[0.68rem] text-muted-foreground">Substitute assigned by HOD</p>
+                    </div>
+                  )}
+
+                  <div className="text-[0.68rem] text-primary/80 font-semibold flex items-center justify-end gap-1 pt-1 border-t border-border/40">
+                    <span>Click to view full-day timetable</span>
+                    <Calendar className="size-3" />
                   </div>
-                )}
-
-                <div className="text-[0.68rem] text-primary/80 font-semibold flex items-center justify-end gap-1 pt-1 border-t border-border/40">
-                  <span>Click to view full-day timetable</span>
-                  <Calendar className="size-3" />
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -1640,7 +1699,7 @@ export function FacultyModuleView({ initialTab = "faculty-status" }: { initialTa
                   onClick={() => setIsViewOpen(false)}
                   className="w-full text-xs"
                 >
-                  Close Dossier
+                  Close
                 </Button>
               </DialogFooter>
             </div>

@@ -126,6 +126,17 @@ export function GroupedBarChart({ data, xKey, series, height = 240 }: SeriesChar
   );
 }
 
+export function SimpleBarChart({ data, height = 240 }: { data: { label: string; value: number }[]; height?: number }) {
+  return (
+    <GroupedBarChart
+      data={data}
+      xKey="label"
+      series={[{ key: "value", label: "Count" }]}
+      height={height}
+    />
+  );
+}
+
 interface DonutProps {
   data: any[];
   height?: number;

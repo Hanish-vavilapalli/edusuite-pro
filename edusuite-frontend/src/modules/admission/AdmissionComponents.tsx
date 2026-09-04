@@ -425,8 +425,14 @@ export function AdmissionModuleView() {
                         {app.category}
                       </Badge>
                     </td>
-                    <td className="py-3 px-3 max-w-xs text-muted-foreground truncate" title={app.documents}>
-                      {app.documents}
+                    <td className="py-3 px-3 max-w-xs text-muted-foreground truncate" title={typeof app.documents === "string" ? app.documents : JSON.stringify(app.documents)}>
+                      {typeof app.documents === "string"
+                        ? app.documents
+                        : typeof app.documents === "object" && app.documents !== null
+                        ? Object.values(app.documents)
+                            .map((d: any) => d?.name || d?.uploadedFileName || "Document")
+                            .join(", ")
+                        : "No Documents"}
                     </td>
                     <td className="py-3 px-3">
                       <Badge
@@ -686,7 +692,15 @@ export function AdmissionModuleView() {
 
                 <div className="p-3 rounded-lg bg-card border border-border/60 space-y-1">
                   <span className="text-muted-foreground font-semibold">Document Audit Notes:</span>
-                  <p className="text-xs text-foreground font-medium">{selectedApp.documents}</p>
+                  <p className="text-xs text-foreground font-medium">
+                    {typeof selectedApp.documents === "string"
+                      ? selectedApp.documents
+                      : typeof selectedApp.documents === "object" && selectedApp.documents !== null
+                      ? Object.values(selectedApp.documents)
+                          .map((d: any) => `${d?.name || "Doc"}: ${d?.status || "Uploaded"}`)
+                          .join(" | ")
+                      : "No document notes"}
+                  </p>
                 </div>
               </div>
 
@@ -696,7 +710,7 @@ export function AdmissionModuleView() {
                   onClick={() => setIsViewOpen(false)}
                   className="w-full text-xs"
                 >
-                  Close Dossier
+                  Close
                 </Button>
               </DialogFooter>
             </div>

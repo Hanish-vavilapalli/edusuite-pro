@@ -49,26 +49,25 @@ router.get("/resources", authenticateToken, async (req: AuthenticatedRequest, re
     // Student specific filtering: only show enrolled subjects or department-level general resources
     if (req.userRole === "student") {
       const registrations = await prisma.courseRegistration.findMany({
-        where: { userId: req.userId },
+        where: { studentId: req.userId! },
         select: { courseId: true }
       });
       const courseIds = registrations.map(r => r.courseId);
 
       const student = await prisma.student.findUnique({
-        where: { id: req.userId },
+        where: { id: req.userId! },
         select: { department: true }
       });
 
       const resources = await prisma.lmsResource.findMany({
         where: {
           OR: [
-            { subjectId: { in: courseIds } },
+            { courseId: { in: courseIds } },
             { 
-              subjectId: null,
+              courseId: null,
               departmentId: student?.department || undefined 
             }
           ],
-          resourceType: (resourceType as string) || undefined,
           isPublished: true
         },
         include: {
@@ -88,8 +87,8 @@ router.get("/resources", authenticateToken, async (req: AuthenticatedRequest, re
         department: r.departmentId || "CSE",
         size: r.fileSize || "0 KB",
         url: r.fileUrl || "",
-        uploadedBy: r.faculty.name,
-        createdAt: r.createdAt.toISOString().split("T")[0]
+        uploadedBy: r.faculty ? r.faculty.name : "Faculty Member",
+        createdAt: (r.createdAt || r.uploadedAt || new Date()).toISOString().split("T")[0]
       }));
 
       return res.json(mapped);
@@ -126,7 +125,7 @@ router.get("/resources", authenticateToken, async (req: AuthenticatedRequest, re
 
     return res.json(mapped);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 });
 
@@ -157,7 +156,7 @@ router.get("/videos", authenticateToken, async (req: AuthenticatedRequest, res: 
 
     return res.json(mapped);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 });
 
@@ -186,8 +185,9 @@ router.post("/videos", authenticateToken, async (req: AuthenticatedRequest, res:
         title,
         resourceType: "VIDEO_LECTURE",
         facultyId: facultyId,
-        subjectId: subjectId || null,
+        courseId: subjectId || null,
         departmentId: faculty?.department || "CSE",
+        fileUrl: videoUrl || "https://www.youtube.com/embed/aircAruvnKk",
         videoUrl: videoUrl || "https://www.youtube.com/embed/aircAruvnKk",
         fileSize: duration || "45 mins",
         isPublished: true
@@ -206,7 +206,7 @@ router.post("/videos", authenticateToken, async (req: AuthenticatedRequest, res:
       duration: newVideo.fileSize || "45 mins",
       instructor: uploaderName || (newVideo.faculty ? newVideo.faculty.name : "Faculty Member"),
       videoUrl: newVideo.videoUrl || "https://www.youtube.com/embed/aircAruvnKk",
-      createdAt: newVideo.createdAt.toISOString().split("T")[0]
+      createdAt: (newVideo.createdAt || newVideo.uploadedAt || new Date()).toISOString().split("T")[0]
     };
 
     return res.status(201).json(mapped);
@@ -223,7 +223,7 @@ router.delete("/videos/:id", authenticateToken, async (req: AuthenticatedRequest
     await prisma.lmsResource.delete({ where: { id } });
     res.json({ message: "Video lecture deleted successfully." });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 });
 
@@ -231,26 +231,25 @@ router.delete("/videos/:id", authenticateToken, async (req: AuthenticatedRequest
 router.get(["/student/resources", "/student/lms/resources", "/resources/student"], authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const registrations = await prisma.courseRegistration.findMany({
-      where: { userId: req.userId },
+      where: { studentId: req.userId! },
       select: { courseId: true }
     });
     const courseIds = registrations.map(r => r.courseId);
 
     const student = await prisma.student.findUnique({
-      where: { id: req.userId },
+      where: { id: req.userId! },
       select: { department: true }
     });
 
     const resources = await prisma.lmsResource.findMany({
       where: {
         OR: [
-          { subjectId: { in: courseIds } },
+          { courseId: { in: courseIds } },
           { 
-            subjectId: null,
+            courseId: null,
             departmentId: student?.department || undefined 
           }
         ],
-        resourceType: (req.query.resourceType as string) || undefined,
         isPublished: true
       },
       include: {
@@ -271,7 +270,7 @@ router.get(["/student/resources", "/student/lms/resources", "/resources/student"
       size: r.fileSize || "0 KB",
       url: r.fileUrl || "",
       uploadedBy: r.faculty ? r.faculty.name : "Faculty Member",
-      createdAt: r.createdAt.toISOString().split("T")[0]
+      createdAt: (r.createdAt || r.uploadedAt || new Date()).toISOString().split("T")[0]
     }));
 
     return res.json(mapped);
@@ -369,7 +368,7 @@ router.post("/resources", authenticateToken, async (req: AuthenticatedRequest, r
         title,
         resourceType,
         facultyId: facultyId,
-        subjectId: subjectId || null,
+        courseId: subjectId || null,
         departmentId: departmentId,
         fileUrl,
         fileName: finalFileName,
@@ -394,10 +393,10 @@ router.post("/resources", authenticateToken, async (req: AuthenticatedRequest, r
       size: resource.fileSize || "0 KB",
       url: resource.fileUrl || "",
       uploadedBy: uploaderName || (resource.faculty ? resource.faculty.name : "Faculty Member"),
-      createdAt: resource.createdAt.toISOString().split("T")[0]
+      createdAt: (resource.createdAt || resource.uploadedAt || new Date()).toISOString().split("T")[0]
     };
 
-    res.status(201).json(mapped);
+    return res.status(201).json(mapped);
   } catch (error: any) {
     console.error("LMS upload error:", error);
     res.status(500).json({ error: error.message });
@@ -786,7 +785,7 @@ router.get("/assignments/:id/submissions", authenticateToken, async (req: Authen
         ]
       },
       include: {
-        user: {
+        student: {
           select: { id: true, name: true, rollNumber: true }
         }
       }
@@ -802,7 +801,7 @@ router.get("/assignments/:id/submissions", authenticateToken, async (req: Authen
     dbSubmissions.forEach((s) => subMap.set(s.student_id, s));
 
     const result = registrations.map((r) => {
-      const student = r.user;
+      const student = r.student;
       const sub = subMap.get(student.id);
 
       return {
@@ -920,7 +919,7 @@ router.get(["/student/lms/assignments", "/student/assignments", "/assignments/st
     
     // 1. Find explicit course registrations
     const registrations = await prisma.courseRegistration.findMany({
-      where: { userId: studentId },
+      where: { studentId },
       include: { course: true }
     });
 
@@ -1096,7 +1095,7 @@ router.post(["/student/lms/assignments/:id/submit", "/student/assignments/:id/su
 
     // Check student course registration
     const isRegistered = await prisma.courseRegistration.findFirst({
-      where: { userId: studentId, courseId: assignment.subject_id }
+      where: { studentId, courseId: assignment.subject_id }
     });
     if (!isRegistered) {
       return res.status(403).json({ error: "You are not registered for this subject." });

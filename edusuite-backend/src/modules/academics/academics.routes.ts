@@ -388,7 +388,7 @@ router.post("/curriculum", authenticateToken, requireSuperAdmin, async (req: Aut
 });
 
 // ==========================================
-// 5. MASTER TIMETABLE APIS (INSFORGE POSTGRESQL SINGLE SOURCE OF TRUTH)
+// 5. MASTER TIMETABLE APIS (POSTGRESQL SINGLE SOURCE OF TRUTH)
 // ==========================================
 
 // GET /api/academics/timetable: Fetch authoritative timetable for branch, semester, section

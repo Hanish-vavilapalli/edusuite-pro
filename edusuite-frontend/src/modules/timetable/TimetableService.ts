@@ -90,46 +90,31 @@ export const MOCK_SUBJECTS_BY_BRANCH_SEM: Record<string, { code: string; name: s
 
 export function generateInitialSchedule(branch: string = "CSE", semester: number = 5, section: string = "Section A"): TimetablePeriod[] {
   const periods: TimetablePeriod[] = [];
-  let idCounter = 100;
-
-  const defaultPatternNormal = [
-    { code: "CS501", name: "Machine Learning & Neural Nets", faculty: "Teja" },
-    { code: "CS502", name: "Compiler Design & Lexical Parsing", faculty: "Varma" },
-    { code: "CS503", name: "Database Systems & SQL Optimization", faculty: "Sharma" },
-    { code: "CS506", name: "Web Technologies & Microservices", faculty: "Swaminathan" },
-    { code: "CS501", name: "Machine Learning & Neural Nets", faculty: "Teja" },
-    { code: "CS502", name: "Compiler Design & Lexical Parsing", faculty: "Varma" },
-    { code: "CS503", name: "Database Systems & SQL Optimization", faculty: "Sharma" },
+  
+  const key = `${branch}-${semester}`;
+  const subjects = MOCK_SUBJECTS_BY_BRANCH_SEM[key] || [
+    { code: `${branch.slice(0, 3)}${semester}01`, name: `${branch} Core Systems I`, faculty: "Dr. K. Sai Teja", facultyId: "FAC-106", room: "Block B - 302", isLab: false },
+    { code: `${branch.slice(0, 3)}${semester}02`, name: `${branch} Data Architecture`, faculty: "Ms. Ananya Sharma", facultyId: "FAC-105", room: "Block B - 302", isLab: false },
+    { code: `${branch.slice(0, 3)}${semester}03`, name: `${branch} Advanced Laboratory`, faculty: "Dr. Rajesh K. Varma", facultyId: "FAC-101", room: "Lab - AI Center", isLab: true },
+    { code: `${branch.slice(0, 3)}${semester}04`, name: `${branch} Web & Cloud Services`, faculty: "Prof. Arvind Swaminathan", facultyId: "FAC-103", room: "Block B - 305", isLab: false },
+    { code: `${branch.slice(0, 3)}${semester}05`, name: `${branch} Elective & Analytics`, faculty: "Dr. Meera Nambiar", facultyId: "FAC-102", room: "Block B - 302", isLab: false },
   ];
 
-  const defaultPatternTueThu = [
-    { code: "CS501", name: "Machine Learning & Neural Nets", faculty: "Teja" },
-    { code: "CS502", name: "Compiler Design & Lexical Parsing", faculty: "Varma" },
-    { code: "CS503", name: "Database Systems & SQL Optimization", faculty: "Sharma" },
-    { code: "CS506", name: "Web Technologies & Microservices", faculty: "Swaminathan" },
-    { code: "CS504L", name: "Machine Learning Laboratory", faculty: "Teja", isLab: true },
-    { code: "CS505", name: "Design & Analysis of Algorithms", faculty: "Rao" },
-    { code: "CS507", name: "Software Engineering & Agile", faculty: "Kumar" },
-  ];
-
-  DAYS.forEach((day) => {
-    const isTueOrThu = day === "Tuesday" || day === "Thursday";
-    const pattern = isTueOrThu ? defaultPatternTueThu : defaultPatternNormal;
-
+  DAYS.forEach((day, dayIdx) => {
     PERIOD_SLOTS.forEach((slot, slotIdx) => {
-      const item = pattern[slotIdx] || pattern[0];
+      const subj = subjects[(dayIdx + slotIdx) % subjects.length];
       periods.push({
-        id: `TT-${idCounter++}`,
+        id: `TT-${branch}-${semester}-${section}-${dayIdx + 1}-${slot.periodNumber}`,
         day,
         periodNumber: slot.periodNumber,
         startTime: slot.startTime,
         endTime: slot.endTime,
-        subjectCode: item.code,
-        subjectName: item.name,
-        facultyId: `FAC-${100 + slotIdx}`,
-        facultyName: item.faculty,
-        roomNo: item.isLab ? "Lab - AI Center" : "LH-205",
-        isLab: !!item.isLab,
+        subjectCode: subj.code,
+        subjectName: subj.name,
+        facultyId: subj.facultyId,
+        facultyName: subj.faculty,
+        roomNo: subj.room,
+        isLab: subj.isLab,
         branch,
         semester,
         section,
@@ -170,7 +155,7 @@ export async function fetchTimetableGrid(
 ): Promise<TimetableGrid> {
   try {
     const res = await api.get(`/api/academics/timetable?branch=${encodeURIComponent(branch)}&semester=${semester}&section=${encodeURIComponent(section)}`);
-    if (res && res.data && Array.isArray(res.data.schedule)) return res.data;
+    if (res && res.data && Array.isArray(res.data.schedule) && res.data.schedule.length > 0) return res.data;
   } catch {}
 
   return {
@@ -178,7 +163,7 @@ export async function fetchTimetableGrid(
     semester,
     section,
     academicYear: "2026-2027",
-    schedule: [],
+    schedule: generateInitialSchedule(branch, semester, section),
   };
 }
 
@@ -189,10 +174,16 @@ export async function autoGenerateTimetable(
 ): Promise<TimetableGrid> {
   try {
     const res = await api.post("/api/academics/timetable/generate", { branch, semester, section });
-    if (res && res.data && Array.isArray(res.data.schedule)) return res.data;
+    if (res && res.data && Array.isArray(res.data.schedule) && res.data.schedule.length > 0) return res.data;
   } catch {}
 
-  return fetchTimetableGrid(branch, semester, section);
+  return {
+    branch,
+    semester,
+    section,
+    academicYear: "2026-2027",
+    schedule: generateInitialSchedule(branch, semester, section),
+  };
 }
 
 export async function updateTimetablePeriod(

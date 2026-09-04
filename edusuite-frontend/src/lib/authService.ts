@@ -245,8 +245,8 @@ export const SYSTEM_TEST_CREDENTIALS: UserCredential[] = [
 
 export const DESIGNATION_OPTIONS_MAP: Record<CoreRoleKey, DesignationOption[]> = {
   "super-admin": [
-    { id: "admission_desk", label: "Admission Desk" },
     { id: "global_admin", label: "Global System & Platform Owner" },
+    { id: "admission_desk", label: "Admission Desk" },
     { id: "security_admin", label: "Security & Compliance Officer" },
     { id: "audit_admin", label: "Institutional Audit Auditor" },
   ],
@@ -391,7 +391,7 @@ export function getDefaultCredentialsForSelection(
     else if (designation === "hod") email = "hod@cms.com";
     else if (designation === "dean" || designation === "academic_dean") email = "academicdean@cms.com";
     else if (designation === "student_dean") email = "studentdean@cms.com";
-    else if (designation === "iqac_dean") email = "iqac_dean@cms.com"; // Keep it consistent
+    else if (designation === "iqac_dean") email = "iqacdean@cms.com";
     else if (designation === "ima_dean") email = "imadean@cms.com";
     else if (designation === "research_dean") email = "researchdean@cms.com";
     else if (designation === "finance_dean") email = "financedean@cms.com";
@@ -427,6 +427,7 @@ export function resolveRoleContextFromSelection(
       role: "super-admin",
       flags: ["isSystemAdmin", "isPrincipal"],
       toastMessage: `Logged in as Super Admin [${branch}]`,
+      targetRoute: "/super-admin/dashboard",
     };
   }
 

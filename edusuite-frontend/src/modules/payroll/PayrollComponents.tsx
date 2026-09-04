@@ -804,15 +804,27 @@ export function PayrollModuleView() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedSlipDetail, setSelectedSlipDetail] = useState<SalarySlip | null>(null);
 
+  const [approvalProgress, setApprovalProgress] = useState<any>(null);
+
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      const ledger = await fetchPayrollLedger(department);
-      setSlips(ledger);
+      const data = await fetchMyPayroll();
+      if (data && data.payrollHistory && data.payrollHistory.length > 0) {
+        setSlips(data.payrollHistory);
+        setApprovalProgress(data.approvalProgress);
+      } else {
+        const ledger = await fetchPayrollLedger(department);
+        setSlips(ledger);
+      }
     } catch (err) {
-      setError("Failed to synchronize payroll disbursement ledgers.");
+      try {
+        const ledger = await fetchPayrollLedger(department);
+        setSlips(ledger);
+      } catch (e) {
+        setError("Failed to synchronize payroll disbursement ledgers.");
+      }
     } finally {
       setLoading(false);
     }
@@ -920,6 +932,38 @@ export function PayrollModuleView() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
             {/* Left side (2/3 width on desktop) */}
             <div className="lg:col-span-2 space-y-6">
+              {approvalProgress && (
+                <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold font-display uppercase tracking-wider text-primary flex items-center gap-1.5">
+                      <ShieldCheck className="size-4 text-primary" /> 3-Tier Institutional Governance Workflow
+                    </h4>
+                    <Badge variant="outline" className="text-[10px] font-mono border-primary/30 text-primary">
+                      Status: {approvalProgress.status}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-5 gap-2 pt-2">
+                    {[
+                      { name: "Generated", done: true, by: "HR System" },
+                      { name: "HR Verify", done: ["HR_VERIFIED", "FINANCE_REVIEWED", "SUPER_ADMIN_ACCEPTED", "Paid", "Processing"].includes(approvalProgress.status), by: approvalProgress.hrVerifiedBy || "HR Director" },
+                      { name: "Finance Audit", done: ["FINANCE_REVIEWED", "SUPER_ADMIN_ACCEPTED", "Paid", "Processing"].includes(approvalProgress.status), by: approvalProgress.financeReviewedBy || "Finance Dean" },
+                      { name: "Super Admin", done: ["SUPER_ADMIN_ACCEPTED", "Paid", "Processing"].includes(approvalProgress.status), by: approvalProgress.superAdminDecisionBy || "Super Admin" },
+                      { name: "Disbursed", done: approvalProgress.status === "Paid", by: "Bank Credit" },
+                    ].map((s, idx) => (
+                      <div key={idx} className="flex flex-col items-center text-center space-y-1">
+                        <div className={cn(
+                          "size-7 rounded-full flex items-center justify-center text-xs font-bold border transition-colors",
+                          s.done ? "bg-emerald-500 text-white border-emerald-600" : "bg-muted text-muted-foreground border-border"
+                        )}>
+                          {s.done ? <CheckCircle2 className="size-4" /> : idx + 1}
+                        </div>
+                        <span className="text-[11px] font-semibold text-foreground leading-tight">{s.name}</span>
+                        <span className="text-[9px] text-muted-foreground truncate w-full">{s.by ? s.by.split(" ")[0] : ""}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <NetSalaryCard activeSlip={activeSlip} onDownload={handleDownloadLatestPayslip} />
               <SalaryBreakdown activeSlip={activeSlip} />
               <AttendanceImpact activeSlip={activeSlip} />

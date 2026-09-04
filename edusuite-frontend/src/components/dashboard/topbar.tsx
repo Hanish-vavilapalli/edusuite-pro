@@ -56,6 +56,8 @@ import { useRole } from "@/context/role-context";
 import { notificationService, type Notification } from "@/shared/notifications";
 import { eventBus } from "@/shared/services/eventBus";
 
+import { globalSearch, type SearchResultItem } from "@/modules/super-admin/SuperAdminService";
+
 function useCrumbs() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const parts = pathname.split("/").filter(Boolean);
@@ -80,13 +82,64 @@ export function Topbar() {
     externalPersona,
     setExternalPersona,
   } = useRole();
-  const [dark, setDark] = useState(false);
+  
+  const [dark, setDark] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("theme") === "dark" || document.documentElement.classList.contains("dark");
+    }
+    return false;
+  });
+  
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [notifs, setNotifs] = useState<Notification[]>([]);
 
+  // Global Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("theme", dark ? "dark" : "light");
+    }
   }, [dark]);
+
+  // Debounced Global Search Handler
+  useEffect(() => {
+    if (searchQuery.trim().length < 2) {
+      setSearchResults([]);
+      setIsSearchOpen(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearchLoading(true);
+      const results = await globalSearch(searchQuery);
+      setSearchResults(results);
+      setIsSearchLoading(false);
+      setIsSearchOpen(true);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleMarkAllRead = async () => {
+    await Promise.all(notifs.map((n) => notificationService.markNotificationAsRead(n.id, profile.personaName)));
+    setNotifs((prev) => prev.map((x) => ({ ...x, status: "read" })));
+    toast.success("All notifications marked as read.");
+  };
+
+  const handleSignOut = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("token");
+      localStorage.removeItem("role");
+      localStorage.clear();
+    }
+    toast.info("Signed out successfully.");
+    navigate({ to: "/login" });
+  };
 
   const getTargetNotifRole = (): string => {
     if (role === "student") return "student";
@@ -153,103 +206,75 @@ export function Topbar() {
       <div className="flex items-center justify-between gap-3 px-4 py-2.5 min-w-0">
         <div className="flex min-w-0 items-center gap-2 shrink-0">
           <SidebarTrigger className="shrink-0" />
-          <div className="relative hidden xl:block min-w-0">
+          
+          {/* Functional Global Search Input with Popover */}
+          <div className="relative hidden md:block min-w-0">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search students, staff..." className="h-8 w-44 lg:w-56 text-xs pl-8" />
+            <Input
+              placeholder="Search students, staff, departments..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setIsSearchOpen(false);
+              }}
+              className="h-8 w-44 md:w-56 lg:w-72 text-xs pl-8 pr-7"
+            />
+            {isSearchLoading && (
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 size-3 animate-spin border-2 border-primary border-t-transparent rounded-full" />
+            )}
+
+            {isSearchOpen && (
+              <div className="absolute left-0 top-full mt-1.5 w-80 lg:w-96 rounded-xl border border-border bg-card shadow-lg p-2 z-50 max-h-96 overflow-y-auto space-y-2">
+                <div className="flex items-center justify-between px-2 py-1 text-[0.68rem] text-muted-foreground font-semibold border-b border-border">
+                  <span>Global Search Results</span>
+                  <span>{searchResults.length} Found</span>
+                </div>
+                {searchResults.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-muted-foreground">
+                    No matching records found.
+                  </div>
+                ) : (
+                  Array.from(new Set(searchResults.map((r) => r.category))).map((cat) => (
+                    <div key={cat} className="space-y-1">
+                      <div className="text-[0.65rem] font-bold uppercase tracking-wider text-muted-foreground/70 px-2 pt-1">
+                        {cat}
+                      </div>
+                      {searchResults
+                        .filter((r) => r.category === cat)
+                        .map((res) => (
+                          <div
+                            key={res.id}
+                            onClick={() => {
+                              setIsSearchOpen(false);
+                              setSearchQuery("");
+                              navigate({ to: res.route as any });
+                            }}
+                            className="p-2 rounded-lg hover:bg-accent/60 cursor-pointer flex items-center justify-between gap-2 text-xs transition-colors"
+                          >
+                            <div>
+                              <div className="font-semibold text-foreground">{res.title}</div>
+                              <div className="text-[0.68rem] text-muted-foreground font-mono">{res.subtitle}</div>
+                            </div>
+                            <ExternalLink className="size-3 text-muted-foreground shrink-0" />
+                          </div>
+                        ))}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto scrollbar-none py-0.5 max-w-full">
-          <Select
-            value={role}
-            onValueChange={(v) => {
-              const newRole = v as LoginRole;
-              setRole(newRole);
-              if (newRole === "super-admin") navigate({ to: "/super-admin/dashboard" });
-              else if (newRole === "student") navigate({ to: "/student/dashboard" });
-              else if (newRole === "parent") navigate({ to: "/parent/dashboard" });
-              else if (newRole === "external-user") navigate({ to: "/external-user/dashboard" });
-              else if (newRole === "staff") navigate({ to: "/dashboard" });
-            }}
-          >
-            <SelectTrigger className="h-9 w-[160px] font-semibold text-xs border-primary/40 bg-card" aria-label="5 Core Login Roles">
-              <SelectValue placeholder="Core Login Role" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="super-admin">1. Super Admin</SelectItem>
-              <SelectItem value="staff">2. Staff (Faculty)</SelectItem>
-              <SelectItem value="student">3. Student</SelectItem>
-              <SelectItem value="parent">4. Parent</SelectItem>
-              <SelectItem value="external-user">5. External User</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {role === "staff" && (
-            <>
-              {/* Primary Staff Privilege Flag Dropdown */}
-              <Select
-                value={flags.find((f) => f.startsWith("is")) || "isMentor"}
-                onValueChange={(flagVal) => {
-                  const otherFlags = flags.filter((f) => !f.startsWith("is") || f === "isMentor");
-                  setFlags(Array.from(new Set([flagVal, ...otherFlags])));
-                }}
-              >
-                <SelectTrigger className="h-9 w-[150px] text-xs font-mono bg-card" aria-label="Staff Flag">
-                  <SelectValue placeholder="Privilege Flag" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="isHod">Flag: isHod (HOD)</SelectItem>
-                  <SelectItem value="isDean">Flag: isDean (Dean)</SelectItem>
-                  <SelectItem value="isExamController">Flag: Exam Officer</SelectItem>
-                  <SelectItem value="isExamAssistant">Flag: Exam Assistant</SelectItem>
-                  <SelectItem value="isPlacementOfficer">Flag: isPlacementOfficer</SelectItem>
-                  <SelectItem value="isTransportOfficer">Flag: isTransportOfficer</SelectItem>
-                  <SelectItem value="isHostelWarden">Flag: isHostelWarden</SelectItem>
-                  <SelectItem value="isFinanceOfficer">Flag: isFinanceOfficer</SelectItem>
-                  <SelectItem value="isLibraryAdmin">Flag: isLibraryAdmin</SelectItem>
-                  <SelectItem value="isHRManager">Flag: isHRManager</SelectItem>
-                  <SelectItem value="isPrincipal">Flag: isPrincipal</SelectItem>
-                  <SelectItem value="isVicePrincipal">Flag: isVicePrincipal</SelectItem>
-                  <SelectItem value="isMentor">Flag: isMentor (Default)</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Department Scope Dropdown */}
-              <Select value={department || "CSE"} onValueChange={(v) => setDepartment((v || undefined) as DepartmentCode)}>
-                <SelectTrigger className="h-9 w-[110px] text-xs font-mono bg-card" aria-label="Department Scope">
-                  <SelectValue placeholder="Dept" />
-                </SelectTrigger>
-                <SelectContent>
-                  {DEPARTMENTS.map((dept) => (
-                    <SelectItem key={dept.code} value={dept.code}>
-                      Dept: {dept.code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </>
-          )}
-
-          {role === "external-user" && (
-            <Select
-              value={externalPersona || "recruiter"}
-              onValueChange={(v) => {
-                const persona = (v || undefined) as ExternalPersona;
-                setExternalPersona(persona);
-                navigate({ to: "/external-user/dashboard" });
-              }}
-            >
-              <SelectTrigger className="h-9 w-[160px] text-xs font-medium bg-card" aria-label="External Persona">
-                <SelectValue placeholder="External Persona" />
-              </SelectTrigger>
-              <SelectContent>
-                {EXTERNAL_PERSONAS.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    Persona: {p.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="flex items-center gap-2 flex-nowrap overflow-x-auto scrollbar-none py-0.5 max-w-full">
+          {/* Active Role Indicator Badge */}
+          <div className="px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 text-xs font-semibold uppercase tracking-wider">
+            {role ? role.replace("-", " ") : "Authenticated"}
+          </div>
+          {department && (
+            <div className="px-2.5 py-1 rounded-full bg-muted text-muted-foreground border border-border text-xs font-mono">
+              Dept: {department}
+            </div>
           )}
 
           {role === "staff" && (
@@ -326,7 +351,14 @@ export function Topbar() {
             </SheetTrigger>
             <SheetContent className="w-full sm:max-w-sm flex flex-col h-full p-6">
               <SheetHeader className="mb-4 shrink-0">
-                <SheetTitle>Notifications</SheetTitle>
+                <div className="flex items-center justify-between">
+                  <SheetTitle>Notifications</SheetTitle>
+                  {unread > 0 && (
+                    <Button variant="ghost" size="sm" onClick={handleMarkAllRead} className="text-xs text-primary h-7 px-2">
+                      Mark all read
+                    </Button>
+                  )}
+                </div>
                 <SheetDescription>Campus updates for {profile.personaName}</SheetDescription>
               </SheetHeader>
               <div className="flex-1 overflow-y-auto space-y-3 pr-1">
@@ -441,8 +473,8 @@ export function Topbar() {
               <DropdownMenuItem asChild>
                 <Link to="/settings">Settings</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/login">Sign out</Link>
+              <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive focus:text-destructive">
+                Sign out
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

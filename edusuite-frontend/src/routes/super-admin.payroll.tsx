@@ -281,6 +281,7 @@ function SuperAdminPayrollPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="bg-muted/50 p-1 rounded-xl flex flex-wrap gap-1">
           <TabsTrigger value="overview" className="text-xs rounded-lg cursor-pointer">Payroll Overview</TabsTrigger>
+          <TabsTrigger value="acceptances" className="text-xs rounded-lg cursor-pointer bg-amber-500/10 text-amber-600 font-bold border border-amber-500/20">Acceptance Requests</TabsTrigger>
           <TabsTrigger value="faculty" className="text-xs rounded-lg cursor-pointer">Faculty Payroll</TabsTrigger>
           <TabsTrigger value="staff" className="text-xs rounded-lg cursor-pointer">Staff Payroll</TabsTrigger>
           <TabsTrigger value="processing" className="text-xs rounded-lg cursor-pointer">Payroll Processing</TabsTrigger>
@@ -349,6 +350,23 @@ function SuperAdminPayrollPage() {
               </div>
             </Panel>
           </div>
+        </TabsContent>
+
+        {/* TAB: ACCEPTANCE REQUESTS */}
+        <TabsContent value="acceptances" className="space-y-4">
+          <Panel title="Institutional Pending Approval Queue" description="3-Tier Workflow: Employee/Faculty -> HR Verification -> Finance Dean Review -> Super Admin Acceptance">
+            <div className="p-4 space-y-4 text-xs">
+              <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl">
+                <div>
+                  <h3 className="font-bold text-foreground text-sm">Super Admin Acceptance Control Center</h3>
+                  <p className="text-muted-foreground text-xs">Review pending HR-verified and Finance-audited payroll disbursements, reimbursements, and bank account change requests.</p>
+                </div>
+                <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer" onClick={() => window.location.href = "/super-admin/approval-requests"}>
+                  Open Full Acceptance Queue →
+                </Button>
+              </div>
+            </div>
+          </Panel>
         </TabsContent>
 
         {/* TAB 2 & 3: FACULTY & STAFF LEDGER */}

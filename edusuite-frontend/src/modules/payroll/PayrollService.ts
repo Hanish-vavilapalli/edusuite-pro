@@ -347,6 +347,11 @@ export async function fetchPayrollStats(department?: string, financialYear?: str
   };
 }
 
+export async function fetchMyPayroll(): Promise<any> {
+  const res = await api.get("/api/payroll/me");
+  return res.data;
+}
+
 export async function fetchPayrollLedger(department?: string, status?: string, financialYear?: string, search?: string): Promise<SalarySlip[]> {
   try {
     const query = new URLSearchParams();
@@ -356,16 +361,12 @@ export async function fetchPayrollLedger(department?: string, status?: string, f
     if (search) query.append("search", search);
 
     const res = await api.get(`/api/payroll/ledger?${query.toString()}`);
-    if (res && Array.isArray(res.data) && res.data.length > 0) {
+    if (res && Array.isArray(res.data)) {
       return res.data;
     }
   } catch {}
   
-  if (department) {
-    const deptCode = (department === "Mechanical" || department === "ME") ? "ME" : department;
-    return MOCK_PAYROLL_DATA[deptCode] || MOCK_PAYROLL_DATA["CSE"] || [];
-  }
-  return INITIAL_SALARY_SLIPS;
+  return [];
 }
 
 export async function generatePayslip(slipData: Partial<SalarySlip>): Promise<SalarySlip> {
@@ -466,6 +467,11 @@ export async function requestBankChange(bankData: any): Promise<boolean> {
     await api.post("/api/payroll/bank-change-request", bankData);
   } catch {}
   return true;
+}
+
+export async function disbursePayroll(id: string): Promise<any> {
+  const res = await api.post(`/api/payroll/${id}/disburse`);
+  return res.data;
 }
 
 export async function fetchPayrollReports() {

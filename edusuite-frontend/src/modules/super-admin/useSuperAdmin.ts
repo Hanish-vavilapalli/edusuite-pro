@@ -10,18 +10,29 @@ import {
   bulkUpdateUserStatus,
   fetchDepartments,
   createDepartment,
+  deleteDepartment,
   fetchAuditLogs,
   fetchRolePermissions,
   updateRolePermission,
   fetchDelegationRules,
   updateDelegationRule,
+  createDelegationRule,
+  deleteDelegationRule,
   triggerBackup,
+  fetchAcademicRetention,
+  fetchAnomalies,
+  mitigateAnomaly,
+  sendEmergencyBroadcast,
+  exportUsersRoster,
   type SuperAdminStats,
   type SuperAdminUser,
   type DepartmentItem,
   type AuditLogItem,
   type RolePermissionMatrixItem,
   type DelegationRule,
+  type AcademicRetentionItem,
+  type AnomalyItem,
+  type EmergencyBroadcastPayload,
   MOCK_SUPER_ADMIN_STATS,
   MOCK_USERS,
   MOCK_DEPARTMENTS,
@@ -43,6 +54,8 @@ export function useSuperAdmin() {
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>(MOCK_AUDIT_LOGS);
   const [rolePermissions, setRolePermissions] = useState<RolePermissionMatrixItem[]>(MOCK_ROLE_PERMISSIONS);
   const [delegationRules, setDelegationRules] = useState<DelegationRule[]>(MOCK_DELEGATION_RULES);
+  const [retentionMetrics, setRetentionMetrics] = useState<AcademicRetentionItem[]>([]);
+  const [anomalies, setAnomalies] = useState<AnomalyItem[]>([]);
 
   // Search, Filter, Sort & Pagination State
   const [search, setSearch] = useState("");
@@ -62,13 +75,24 @@ export function useSuperAdmin() {
   // Loading States
   const [loading, setLoading] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
+  const [broadcastLoading, setBroadcastLoading] = useState(false);
+  const [mitigateLoading, setMitigateLoading] = useState(false);
 
   // Modal Dialog States
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [isEditUserOpen, setIsEditUserOpen] = useState(false);
   const [isViewUserOpen, setIsViewUserOpen] = useState(false);
   const [isAddDeptOpen, setIsAddDeptOpen] = useState(false);
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
+  const [isMitigateModalOpen, setIsMitigateModalOpen] = useState(false);
+  const [isAnomalyDetailsOpen, setIsAnomalyDetailsOpen] = useState(false);
+  const [isAddDelegationOpen, setIsAddDelegationOpen] = useState(false);
+  const [isEditDelegationOpen, setIsEditDelegationOpen] = useState(false);
+
   const [selectedUser, setSelectedUser] = useState<SuperAdminUser | null>(null);
+  const [selectedAnomaly, setSelectedAnomaly] = useState<AnomalyItem | null>(null);
+  const [selectedDelegationRule, setSelectedDelegationRule] = useState<DelegationRule | null>(null);
 
   // Forms State
   const [userFormData, setUserFormData] = useState<Partial<SuperAdminUser>>({
@@ -89,17 +113,35 @@ export function useSuperAdmin() {
     status: "Active",
   });
 
+  const [broadcastFormData, setBroadcastFormData] = useState<EmergencyBroadcastPayload>({
+    title: "",
+    message: "",
+    audience: "All Users",
+    priority: "Emergency",
+  });
+
+  const [delegationFormData, setDelegationFormData] = useState<Partial<DelegationRule>>({
+    moduleName: "",
+    delegatedRole: "HOD",
+    assignedPerson: "",
+    scope: "",
+    status: "Active Delegation",
+    permissions: ["Read", "Approve"],
+  });
+
   // Load data from service
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [sData, uData, dData, aData, rData, delData] = await Promise.all([
+      const [sData, uData, dData, aData, rData, delData, retData, anoData] = await Promise.all([
         fetchSuperAdminStats(),
         fetchUsers(),
         fetchDepartments(),
         fetchAuditLogs(),
         fetchRolePermissions(),
         fetchDelegationRules(),
+        fetchAcademicRetention(),
+        fetchAnomalies(),
       ]);
       setStats(sData);
       setUsers(uData);
@@ -107,8 +149,10 @@ export function useSuperAdmin() {
       setAuditLogs(aData);
       setRolePermissions(rData);
       setDelegationRules(delData);
+      setRetentionMetrics(retData);
+      setAnomalies(anoData);
     } catch (err) {
-      toast.error("Error loading Super Admin data. Using local offline state.");
+      toast.error("Error loading Super Admin data.");
     } finally {
       setLoading(false);
     }
@@ -332,53 +376,153 @@ export function useSuperAdmin() {
     [],
   );
 
-  // Backup Trigger
-  const handleTriggerBackup = useCallback(async () => {
+  // Backup Trigger with Confirmation Modal
+  const handleOpenBackupModal = useCallback(() => {
+    setIsBackupModalOpen(true);
+  }, []);
+
+  const handleConfirmBackup = useCallback(async () => {
     setBackupLoading(true);
     toast.info("Initializing system database backup snapshot...");
     const res = await triggerBackup();
     setBackupLoading(false);
+    setIsBackupModalOpen(false);
     toast.success(res.message);
     loadData();
   }, [loadData]);
 
+  // Emergency Broadcast Actions
+  const handleOpenBroadcastModal = useCallback(() => {
+    setBroadcastFormData({
+      title: "",
+      message: "",
+      audience: "All Users",
+      priority: "Emergency",
+    });
+    setIsBroadcastModalOpen(true);
+  }, []);
+
+  const handleBroadcastSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!broadcastFormData.title || !broadcastFormData.message) {
+        toast.error("Please enter broadcast title and message content.");
+        return;
+      }
+      setBroadcastLoading(true);
+      const res = await sendEmergencyBroadcast(broadcastFormData);
+      setBroadcastLoading(false);
+      setIsBroadcastModalOpen(false);
+      toast.success(res.message);
+      loadData();
+    },
+    [broadcastFormData, loadData]
+  );
+
+  // Anomaly Actions
+  const handleOpenMitigate = useCallback((anomaly: AnomalyItem) => {
+    setSelectedAnomaly(anomaly);
+    setIsMitigateModalOpen(true);
+  }, []);
+
+  const handleMitigateSubmit = useCallback(
+    async (action: string) => {
+      if (!selectedAnomaly) return;
+      setMitigateLoading(true);
+      const res = await mitigateAnomaly(selectedAnomaly.id, action);
+      setMitigateLoading(false);
+      setIsMitigateModalOpen(false);
+      toast.success(res.message);
+      loadData();
+    },
+    [selectedAnomaly, loadData]
+  );
+
+  const handleOpenAnomalyDetails = useCallback((anomaly: AnomalyItem) => {
+    setSelectedAnomaly(anomaly);
+    setIsAnomalyDetailsOpen(true);
+  }, []);
+
+  // Department Deletion with Referential Integrity Handling
+  const handleDeleteDeptSubmit = useCallback(
+    async (deptId: string, deptName: string) => {
+      if (confirm(`Are you sure you want to delete department '${deptName}'?`)) {
+        const res = await deleteDepartment(deptId);
+        if (res.success) {
+          toast.success(`Department '${deptName}' deleted successfully.`);
+          loadData();
+        } else {
+          toast.error(res.message || `Cannot delete department '${deptName}'.`);
+        }
+      }
+    },
+    [loadData]
+  );
+
+  // Delegation Matrix Handlers
+  const handleOpenAddDelegation = useCallback(() => {
+    setDelegationFormData({
+      moduleName: "",
+      delegatedRole: "HOD",
+      assignedPerson: "",
+      scope: "",
+      status: "Active Delegation",
+      permissions: ["Read", "Approve"],
+    });
+    setIsAddDelegationOpen(true);
+  }, []);
+
+  const handleOpenEditDelegation = useCallback((rule: DelegationRule) => {
+    setSelectedDelegationRule(rule);
+    setDelegationFormData({ ...rule });
+    setIsEditDelegationOpen(true);
+  }, []);
+
+  const handleAddDelegationSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!delegationFormData.moduleName || !delegationFormData.assignedPerson) {
+        toast.error("Module name and assigned person are required.");
+        return;
+      }
+      const updatedRules = await createDelegationRule(delegationFormData);
+      setDelegationRules(updatedRules);
+      setIsAddDelegationOpen(false);
+      toast.success("Delegation rule created successfully.");
+      loadData();
+    },
+    [delegationFormData, loadData]
+  );
+
+  const handleEditDelegationSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!selectedDelegationRule) return;
+      const updatedRules = await updateDelegationRule(selectedDelegationRule.id, delegationFormData);
+      setDelegationRules(updatedRules);
+      setIsEditDelegationOpen(false);
+      toast.success("Delegation rule updated successfully.");
+      loadData();
+    },
+    [selectedDelegationRule, delegationFormData, loadData]
+  );
+
+  const handleDeleteDelegationRuleSubmit = useCallback(
+    async (id: string) => {
+      if (confirm(`Delete operational delegation rule ${id}?`)) {
+        const updatedRules = await deleteDelegationRule(id);
+        setDelegationRules(updatedRules);
+        toast.success(`Delegation rule ${id} deleted.`);
+        loadData();
+      }
+    },
+    [loadData]
+  );
+
   // CSV Export
-  const handleExportCSV = useCallback(() => {
-    const headers = [
-      "User ID",
-      "Full Name",
-      "Email Address",
-      "Role",
-      "Department",
-      "Status",
-      "Last Login",
-      "Created At",
-    ];
-    const rows = sortedUsers.map((u) => [
-      u.id,
-      `"${u.name}"`,
-      u.email,
-      u.role,
-      `"${u.department}"`,
-      u.status,
-      u.lastLogin,
-      u.createdAt,
-    ]);
-
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute(
-      "download",
-      `SuperAdmin_Users_Roster_${new Date().toISOString().split("T")[0]}.csv`,
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleExportCSV = useCallback(async () => {
+    toast.info("Preparing user roster export...");
+    await exportUsersRoster();
     toast.success(`Exported ${sortedUsers.length} user records to CSV!`);
   }, [sortedUsers]);
 
@@ -391,6 +535,8 @@ export function useSuperAdmin() {
     auditLogs,
     rolePermissions,
     delegationRules,
+    retentionMetrics,
+    anomalies,
     setDelegationRules,
     search,
     setSearch,
@@ -416,6 +562,8 @@ export function useSuperAdmin() {
     handleSelectUser,
     loading,
     backupLoading,
+    broadcastLoading,
+    mitigateLoading,
     isAddUserOpen,
     setIsAddUserOpen,
     isEditUserOpen,
@@ -424,11 +572,29 @@ export function useSuperAdmin() {
     setIsViewUserOpen,
     isAddDeptOpen,
     setIsAddDeptOpen,
+    isBackupModalOpen,
+    setIsBackupModalOpen,
+    isBroadcastModalOpen,
+    setIsBroadcastModalOpen,
+    isMitigateModalOpen,
+    setIsMitigateModalOpen,
+    isAnomalyDetailsOpen,
+    setIsAnomalyDetailsOpen,
+    isAddDelegationOpen,
+    setIsAddDelegationOpen,
+    isEditDelegationOpen,
+    setIsEditDelegationOpen,
     selectedUser,
+    selectedAnomaly,
+    selectedDelegationRule,
     userFormData,
     setUserFormData,
     deptFormData,
     setDeptFormData,
+    broadcastFormData,
+    setBroadcastFormData,
+    delegationFormData,
+    setDelegationFormData,
     loadData,
     handleOpenAddUser,
     handleOpenEditUser,
@@ -440,8 +606,21 @@ export function useSuperAdmin() {
     handleBulkUpdateStatus,
     handleOpenAddDept,
     handleAddDeptSubmit,
+    handleDeleteDeptSubmit,
     handleTogglePermission,
-    handleTriggerBackup,
+    handleOpenBackupModal,
+    handleConfirmBackup,
+    handleOpenBroadcastModal,
+    handleBroadcastSubmit,
+    handleOpenMitigate,
+    handleMitigateSubmit,
+    handleOpenAnomalyDetails,
+    handleOpenAddDelegation,
+    handleOpenEditDelegation,
+    handleAddDelegationSubmit,
+    handleEditDelegationSubmit,
+    handleDeleteDelegationRuleSubmit,
     handleExportCSV,
   };
 }
+

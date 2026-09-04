@@ -1076,7 +1076,7 @@ export function AttendanceModuleView({ initialTab = "all-classes-attendance" }: 
                   onClick={() => setIsViewOpen(false)}
                   className="w-full text-xs"
                 >
-                  Close Dossier
+                  Close
                 </Button>
               </DialogFooter>
             </div>

@@ -61,10 +61,22 @@ import {
   type TimetableGrid,
 } from "./TimetableService";
 
-export function TimetableModuleView() {
-  const [selectedBranch, setSelectedBranch] = useState("CSE");
-  const [selectedSem, setSelectedSem] = useState<number>(5);
-  const [selectedSec, setSelectedSec] = useState("Section A");
+interface TimetableModuleViewProps {
+  initialBranch?: string;
+  initialSem?: number;
+  initialSec?: string;
+  isStudentView?: boolean;
+}
+
+export function TimetableModuleView({
+  initialBranch = "CSE",
+  initialSem = 5,
+  initialSec = "Section A",
+  isStudentView = false,
+}: TimetableModuleViewProps = {}) {
+  const [selectedBranch, setSelectedBranch] = useState(initialBranch);
+  const [selectedSem, setSelectedSem] = useState<number>(initialSem);
+  const [selectedSec, setSelectedSec] = useState(initialSec);
 
   const [viewMode, setViewMode] = useState<"grid" | "faculty" | "room">("grid");
   const [selectedFacultyFilter, setSelectedFacultyFilter] = useState("Dr. K. Sai Teja");
@@ -106,6 +118,10 @@ export function TimetableModuleView() {
 
   // Open Edit Cell Modal
   const handleOpenEditCell = (slot: TimetablePeriod) => {
+    if (isStudentView) {
+      toast.info(`📍 ${slot.subjectCode}: ${slot.subjectName} | 👨‍🏫 ${slot.facultyName} | 🏫 ${slot.roomNo}`);
+      return;
+    }
     setEditingPeriod(slot);
     setClashWarning(null);
     setIsEditModalOpen(true);
@@ -192,28 +208,32 @@ export function TimetableModuleView() {
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-2xl font-bold font-display tracking-tight text-foreground">
-                Automated Timetable Management & Generator
+                {isStudentView ? "Student Class Timetable & Schedule" : "Automated Timetable Management & Generator"}
               </h1>
               <Badge variant="outline" className="font-mono text-xs text-primary border-primary/30">
-                All 4 Running Semesters
+                {isStudentView ? `${selectedBranch} • Sem ${selectedSem} (${selectedSec})` : "All 4 Running Semesters"}
               </Badge>
             </div>
             <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
-              Conflict-free weekly schedule generator across CSE, ECE, ME, CE, EEE, IT & AI&DS branches.
+              {isStudentView
+                ? `Official weekly class schedule for ${selectedBranch} Department - Semester ${selectedSem} (${selectedSec}).`
+                : "Conflict-free weekly schedule generator across CSE, ECE, ME, CE, EEE, IT & AI&DS branches."}
             </p>
           </div>
         </div>
 
         {/* Top Control Bar */}
         <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-auto flex-wrap">
-          <Button
-            size="sm"
-            onClick={handleAutoGenerate}
-            disabled={generating}
-            className="h-9 bg-brand-gradient text-white gap-2 text-xs font-bold shadow-glow"
-          >
-            {generating ? <RefreshCw className="size-4 animate-spin" /> : <Bot className="size-4" />} 🤖 Auto-Generate Timetable
-          </Button>
+          {!isStudentView && (
+            <Button
+              size="sm"
+              onClick={handleAutoGenerate}
+              disabled={generating}
+              className="h-9 bg-brand-gradient text-white gap-2 text-xs font-bold shadow-glow"
+            >
+              {generating ? <RefreshCw className="size-4 animate-spin" /> : <Bot className="size-4" />} 🤖 Auto-Generate Timetable
+            </Button>
+          )}
 
           <Button variant="outline" size="sm" onClick={handleExportCSV} className="h-9 gap-2 text-xs font-medium">
             <FileSpreadsheet className="size-3.5" /> Export Excel
@@ -223,82 +243,86 @@ export function TimetableModuleView() {
             <FileText className="size-3.5" /> Export PDF
           </Button>
 
-          <Button variant="outline" size="sm" onClick={handleExportAll4SemestersPDF} className="h-9 gap-2 text-xs font-medium text-primary border-primary/30">
-            <Sparkles className="size-3.5" /> Export All 4 Sems
-          </Button>
+          {!isStudentView && (
+            <Button variant="outline" size="sm" onClick={handleExportAll4SemestersPDF} className="h-9 gap-2 text-xs font-medium text-primary border-primary/30">
+              <Sparkles className="size-3.5" /> Export All 4 Sems
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* MASTER SELECTORS & FILTER BAR */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 p-4 rounded-2xl bg-card border border-border/80 shadow-sm">
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Branch Dropdown */}
-          <div className="space-y-1">
-            <label className="text-[0.68rem] font-bold text-muted-foreground uppercase tracking-wider block">Academic Branch</label>
-            <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-              <SelectTrigger className="h-9 text-xs font-bold w-[140px] rounded-xl"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {BRANCHES.map((b) => (<SelectItem key={b} value={b} className="text-xs font-bold">{b} Department</SelectItem>))}
-              </SelectContent>
-            </Select>
+      {/* MASTER SELECTORS & FILTER BAR (HIDDEN IN STUDENT VIEW) */}
+      {!isStudentView && (
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 p-4 rounded-2xl bg-card border border-border/80 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Branch Dropdown */}
+            <div className="space-y-1">
+              <label className="text-[0.68rem] font-bold text-muted-foreground uppercase tracking-wider block">Academic Branch</label>
+              <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                <SelectTrigger className="h-9 text-xs font-bold w-[140px] rounded-xl"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {BRANCHES.map((b) => (<SelectItem key={b} value={b} className="text-xs font-bold">{b} Department</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Semester Dropdown */}
+            <div className="space-y-1">
+              <label className="text-[0.68rem] font-bold text-muted-foreground uppercase tracking-wider block">Running Semester</label>
+              <Select value={String(selectedSem)} onValueChange={(val) => setSelectedSem(Number(val))}>
+                <SelectTrigger className="h-9 text-xs font-bold w-[150px] rounded-xl"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1" className="text-xs font-bold">Sem 1 (1st Year)</SelectItem>
+                  <SelectItem value="3" className="text-xs font-bold">Sem 3 (2nd Year)</SelectItem>
+                  <SelectItem value="5" className="text-xs font-bold">Sem 5 (3rd Year)</SelectItem>
+                  <SelectItem value="7" className="text-xs font-bold">Sem 7 (4th Year)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Section Dropdown */}
+            <div className="space-y-1">
+              <label className="text-[0.68rem] font-bold text-muted-foreground uppercase tracking-wider block">Section</label>
+              <Select value={selectedSec} onValueChange={setSelectedSec}>
+                <SelectTrigger className="h-9 text-xs font-bold w-[120px] rounded-xl"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {SECTIONS.map((sec) => (<SelectItem key={sec} value={sec} className="text-xs font-bold">{sec}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          {/* Semester Dropdown */}
-          <div className="space-y-1">
-            <label className="text-[0.68rem] font-bold text-muted-foreground uppercase tracking-wider block">Running Semester</label>
-            <Select value={String(selectedSem)} onValueChange={(val) => setSelectedSem(Number(val))}>
-              <SelectTrigger className="h-9 text-xs font-bold w-[150px] rounded-xl"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1" className="text-xs font-bold">Sem 1 (1st Year)</SelectItem>
-                <SelectItem value="3" className="text-xs font-bold">Sem 3 (2nd Year)</SelectItem>
-                <SelectItem value="5" className="text-xs font-bold">Sem 5 (3rd Year)</SelectItem>
-                <SelectItem value="7" className="text-xs font-bold">Sem 7 (4th Year)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* View Mode Toggle Buttons */}
+          <div className="inline-flex p-1 rounded-2xl bg-muted/60 border border-border/60 self-start md:self-auto">
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                viewMode === "grid" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <CalendarRange className="size-3.5" /> Grid View (Weekly)
+            </button>
 
-          {/* Section Dropdown */}
-          <div className="space-y-1">
-            <label className="text-[0.68rem] font-bold text-muted-foreground uppercase tracking-wider block">Section</label>
-            <Select value={selectedSec} onValueChange={setSelectedSec}>
-              <SelectTrigger className="h-9 text-xs font-bold w-[120px] rounded-xl"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {SECTIONS.map((sec) => (<SelectItem key={sec} value={sec} className="text-xs font-bold">{sec}</SelectItem>))}
-              </SelectContent>
-            </Select>
+            <button
+              onClick={() => setViewMode("faculty")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                viewMode === "faculty" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <User className="size-3.5" /> Faculty View
+            </button>
+
+            <button
+              onClick={() => setViewMode("room")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                viewMode === "room" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Building2 className="size-3.5" /> Room Allocation
+            </button>
           </div>
         </div>
-
-        {/* View Mode Toggle Buttons */}
-        <div className="inline-flex p-1 rounded-2xl bg-muted/60 border border-border/60 self-start md:self-auto">
-          <button
-            onClick={() => setViewMode("grid")}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-              viewMode === "grid" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <CalendarRange className="size-3.5" /> Grid View (Weekly)
-          </button>
-
-          <button
-            onClick={() => setViewMode("faculty")}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-              viewMode === "faculty" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <User className="size-3.5" /> Faculty View
-          </button>
-
-          <button
-            onClick={() => setViewMode("room")}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-              viewMode === "room" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Building2 className="size-3.5" /> Room Allocation
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* VIEW 1: WEEKLY TIMETABLE GRID (EXACT REPLICATED UI FORMAT FROM REFERENCE IMAGE) */}
       {viewMode === "grid" && (

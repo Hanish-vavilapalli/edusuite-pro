@@ -93,15 +93,15 @@ async function logLibraryAction(
 }
 
 // Helper to create notifications for members
-async function notifyMember(userId: string, title: string, message: string, category = "General") {
+async function notifyMember(userId: string, title: string, message: string) {
   try {
     await prisma.notification.create({
       data: {
-        userId,
+        studentId: userId,
         title,
         message,
-        category,
-        read: false
+        type: "INFO",
+        isRead: false
       }
     });
   } catch (e) {

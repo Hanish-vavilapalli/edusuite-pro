@@ -41,7 +41,7 @@ router.get("/", authenticateToken, async (req: AuthenticatedRequest, res: Respon
 
     // Fetch existing registrations for this student to append active status flags
     const registrations = await prisma.courseRegistration.findMany({
-      where: { userId: user.id },
+      where: { studentId: user.id },
     });
 
     // Map registrations status back to catalog courses
@@ -94,19 +94,19 @@ router.post("/register", authenticateToken, async (req: AuthenticatedRequest, re
   }
 
   try {
-    const userId = req.userId!;
+    const studentId = req.userId!;
 
     // Batch upsert course registrations as "exam_registration" status
     const operations = courseIds.map((courseId) =>
       prisma.courseRegistration.upsert({
         where: {
-          userId_courseId: { userId, courseId },
+          studentId_courseId: { studentId, courseId },
         },
         update: {
           status: "exam_registration",
         },
         create: {
-          userId,
+          studentId,
           courseId,
           status: "exam_registration",
         },
@@ -130,10 +130,10 @@ router.post("/nptel", authenticateToken, async (req: AuthenticatedRequest, res: 
   }
 
   try {
-    const userId = req.userId!;
+    const studentId = req.userId!;
 
     const operations = submissions.map(async (sub) => {
-      const { courseId, isNptel, certificateName, comments } = sub;
+      const { courseId, isNptel, certificateName } = sub;
 
       if (isNptel) {
         if (!certificateName) {
@@ -143,30 +143,29 @@ router.post("/nptel", authenticateToken, async (req: AuthenticatedRequest, res: 
         // Save NPTEL Record log
         await prisma.nptelRecord.upsert({
           where: {
-            userId_courseId: { userId, courseId },
+            studentId_courseId: { studentId, courseId },
           },
           update: {
-            certificateName,
-            comments,
+            certificateUrl: certificateName,
           },
           create: {
-            userId,
+            studentId,
             courseId,
-            certificateName,
-            comments,
+            certificateUrl: certificateName,
+            score: 100,
           },
         });
 
         // Set status to "nptel_completed" in course registration
         await prisma.courseRegistration.upsert({
           where: {
-            userId_courseId: { userId, courseId },
+            studentId_courseId: { studentId, courseId },
           },
           update: {
             status: "nptel_completed",
           },
           create: {
-            userId,
+            studentId,
             courseId,
             status: "nptel_completed",
           },
@@ -175,13 +174,13 @@ router.post("/nptel", authenticateToken, async (req: AuthenticatedRequest, res: 
         // Not NPTEL course: move it directly to "exam_registration" status
         await prisma.courseRegistration.upsert({
           where: {
-            userId_courseId: { userId, courseId },
+            studentId_courseId: { studentId, courseId },
           },
           update: {
             status: "exam_registration",
           },
           create: {
-            userId,
+            studentId,
             courseId,
             status: "exam_registration",
           },
@@ -205,12 +204,12 @@ router.post("/pay-exams", authenticateToken, async (req: AuthenticatedRequest, r
   }
 
   try {
-    const userId = req.userId!;
+    const studentId = req.userId!;
 
     const operations = courseIds.map((courseId) =>
       prisma.courseRegistration.update({
         where: {
-          userId_courseId: { userId, courseId },
+          studentId_courseId: { studentId, courseId },
         },
         data: {
           status: "exam_registered_paid",
@@ -219,9 +218,9 @@ router.post("/pay-exams", authenticateToken, async (req: AuthenticatedRequest, r
     );
 
     await Promise.all(operations);
-    res.json({ message: "Exam fees paid and registrations confirmed successfully!" });
+    return res.json({ message: "Exam fees paid and registrations confirmed successfully!" });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 });
 

@@ -1055,7 +1055,7 @@ export function InventoryModuleView() {
                   onClick={() => setIsViewDialogOpen(false)}
                   className="w-full text-xs"
                 >
-                  Close Dossier
+                  Close
                 </Button>
               </DialogFooter>
             </div>

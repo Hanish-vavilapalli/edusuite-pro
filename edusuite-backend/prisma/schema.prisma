@@ -103,30 +103,24 @@ model Course {
 }
 
 model LmsResource {
-  id          String   @id @default(uuid())
-  courseId    String
-  course      Course   @relation(fields: [courseId], references: [id])
-  title       String
-  unit        String   // e.g. "Unit 1", "Unit 2"
-  fileUrl     String
-  fileType    String   // "pdf", "docx", "pptx", "video", etc.
-  fileSize    String   // e.g. "2.4 MB"
-  facultyId   String
-  faculty     Faculty  @relation(fields: [facultyId], references: [id])
-  uploadedAt  DateTime @default(now())
-}
-
-model SubjectAllocation {
-  id                  String   @id @default(uuid())
-  facultyId           String
-  faculty             Faculty  @relation(fields: [facultyId], references: [id])
-  courseId            String
-  course              Course   @relation(fields: [courseId], references: [id])
-  section             String
-  semester            Int
-  academicYear        String   @default("2024-25")
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id           String   @id @default(uuid())
+  courseId     String?
+  course       Course?  @relation(fields: [courseId], references: [id])
+  title        String
+  unit         String?  // e.g. "Unit 1", "Unit 2"
+  fileUrl      String
+  videoUrl     String?
+  fileType     String?  // "pdf", "docx", "pptx", "video", etc.
+  fileSize     String?  // e.g. "2.4 MB"
+  fileName     String?
+  mimeType     String?
+  resourceType String?  @default("STUDY_NOTE")
+  departmentId String?
+  isPublished  Boolean  @default(true)
+  facultyId    String
+  faculty      Faculty  @relation(fields: [facultyId], references: [id])
+  uploadedAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
 }
 
 model CourseRegistration {
@@ -137,17 +131,21 @@ model CourseRegistration {
   course       Course   @relation(fields: [courseId], references: [id])
   status       String   @default("APPROVED") // "APPROVED" | "PENDING" | "REJECTED"
   registeredAt DateTime @default(now())
+
+  @@unique([studentId, courseId])
 }
 
 model NptelRecord {
-  id            String   @id @default(uuid())
-  studentId     String
-  student       Student  @relation(fields: [studentId], references: [id])
-  courseId      String
-  course        Course   @relation(fields: [courseId], references: [id])
-  score         Float
+  id             String   @id @default(uuid())
+  studentId      String
+  student        Student  @relation(fields: [studentId], references: [id])
+  courseId       String
+  course         Course   @relation(fields: [courseId], references: [id])
+  score          Float    @default(0.0)
   certificateUrl String?
-  createdAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  @@unique([studentId, courseId])
 }
 
 model AttendanceRecord {
@@ -180,7 +178,6 @@ model Notification {
   type      String   @default("INFO")
   createdAt DateTime @default(now())
 }
-<<<<<<< HEAD
 
 model Department {
   id            String   @id @default(uuid())
@@ -224,16 +221,18 @@ model RolePermission {
 }
 
 model DelegationRule {
-  id             String   @id @default(uuid())
-  ruleId         String   @unique // e.g. "DEL-101"
+  id             String    @id @default(uuid())
+  ruleId         String    @unique // e.g. "DEL-101"
   moduleName     String
   delegatedRole  String
   assignedPerson String
   scope          String
-  status         String   @default("Active Delegation") // "Active Delegation" | "Pending Review"
-  permissions    String   // Stored as JSON or comma-separated list
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  status         String    @default("Active Delegation") // "Active Delegation" | "Pending Review"
+  permissions    String    // Stored as JSON or comma-separated list
+  startDate      DateTime?
+  endDate        DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 }
 
 model CurriculumScheme {
@@ -423,31 +422,41 @@ model SubjectAllocation {
 model ApprovalRequest {
   id                   String             @id @default(uuid())
   requestNumber        String             @unique // e.g. "REQ-2026-0801"
-  requestType          String             // "PAYROLL" | "REIMBURSEMENT" | "BANK_CHANGE" | "PAYROLL_DISBURSEMENT"
+  requestType          String             // "PAYROLL" | "REIMBURSEMENT" | "BANK_CHANGE" | "ATTENDANCE" | "LEAVE" | "EXAM" | "FINANCE" | "CLEARANCE" | "SECURITY"
+  module               String?            // "ATTENDANCE" | "LEAVE" | "EXAM" | "FINANCE" | "PAYROLL" | "REIMBURSEMENT" | "BANK_ACCOUNT" | "CLEARANCE" | "SECURITY"
   title                String
   description          String?
   amount               Float?             @default(0)
 
-  // Target Entity Linkage
+  // Target Entity Linkage (Direct foreign keys & generic references)
   payrollRecordId      String?
   payrollRecord        PayrollRecord?     @relation(fields: [payrollRecordId], references: [id], onDelete: SetNull)
   reimbursementId      String?
   reimbursement        Reimbursement?     @relation(fields: [reimbursementId], references: [id], onDelete: SetNull)
   bankChangeRequestId  String?
   bankChangeRequest    BankChangeRequest? @relation(fields: [bankChangeRequestId], references: [id], onDelete: SetNull)
+  
+  entityType           String?            // e.g. "AttendanceRecord", "FacultyLeave", "ExamGrade", "StudentClearance"
+  entityId             String?            // ID of target entity
+
+  // Workflow Engine Details
+  workflowCode         String?            // e.g. "ATTENDANCE_MEDICAL_OVERRIDE", "FACULTY_LEAVE", "GRADE_CORRECTION", "PAYROLL_DISBURSEMENT"
+  currentStep          Int                @default(1)
+  totalSteps           Int                @default(3)
+  stepsJson            String?            // JSON string storing ordered step sequence & sign-offs
+  metadata             String?            // JSON string storing request context / payload
 
   // Requester Metadata
   requestedBy          String
-  requestedByRole      String             // "faculty" | "staff" | "hr" | "finance"
+  requestedByRole      String             // "faculty" | "staff" | "hr" | "finance" | "student"
   department           String
 
   // Workflow Stages & Statuses
-  // States: SUBMITTED -> HR_VERIFIED -> FINANCE_REVIEW -> SUPER_ADMIN_PENDING -> PROCESSING -> APPROVED -> PAID / UPDATED | REJECTED | RETURNED
   currentStage         String             @default("SUBMITTED") // "SUBMITTED" | "HR_VERIFICATION" | "FINANCE_REVIEW" | "SUPER_ADMIN_PENDING" | "FINALIZED"
-  status               String             @default("SUBMITTED")
+  status               String             @default("SUBMITTED") // "SUBMITTED" | "PENDING" | "APPROVED" | "REJECTED" | "RETURNED" | "EXECUTED" | "LOCKED"
   priority             String             @default("High")      // "Normal" | "High" | "Critical"
 
-  // 3-Tier Verification Sign-offs
+  // 3-Tier Verification Sign-offs & History
   hrVerifiedBy         String?
   hrVerifiedAt         DateTime?
   hrNotes              String?
@@ -470,6 +479,8 @@ model ApprovalRequest {
   @@index([currentStage])
   @@index([status])
   @@index([department])
+  @@index([module])
+  @@index([workflowCode])
 }
 
 model Alumni {
@@ -965,5 +976,3 @@ model LibrarySetting {
   accessionPrefix             String   @default("GMRIT")
   updatedAt                   DateTime @updatedAt
 }
-=======
->>>>>>> d12441fb36b1b8317f13607b9383394f7205352b

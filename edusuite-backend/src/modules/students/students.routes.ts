@@ -211,7 +211,7 @@ router.get("/:id", authenticateToken, async (req: AuthenticatedRequest, res: Res
   }
 });
 
-// POST /api/students: Create new student record in InsForge Cloud PostgreSQL
+// POST /api/students: Create new student record in PostgreSQL
 router.post("/", authenticateToken, requireSuperAdmin, async (req: AuthenticatedRequest, res: Response) => {
   const { rollNo, fullName, email, department, semester, section, cgpa, feeStatus, guardianName, guardianPhone, academicYear } = req.body;
 

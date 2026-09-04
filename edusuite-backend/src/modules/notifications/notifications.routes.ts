@@ -10,7 +10,7 @@ router.get("/", authenticateToken, async (req: AuthenticatedRequest, res: Respon
     const userId = req.userId!;
 
     const notifications = await prisma.notification.findMany({
-      where: { userId },
+      where: { studentId: userId },
       orderBy: { createdAt: "desc" },
     });
 
@@ -29,7 +29,7 @@ router.put("/:id/read", authenticateToken, async (req: AuthenticatedRequest, res
 
     // Ensure the notification belongs to this user
     const n = await prisma.notification.findFirst({
-      where: { id, userId },
+      where: { id, studentId: userId },
     });
 
     if (!n) {
@@ -38,7 +38,7 @@ router.put("/:id/read", authenticateToken, async (req: AuthenticatedRequest, res
 
     const updated = await prisma.notification.update({
       where: { id },
-      data: { read: true },
+      data: { isRead: true },
     });
 
     return res.json({ message: "Notification marked as read.", notification: updated });

@@ -258,16 +258,24 @@ export async function seedDatabase() {
       const lName = LAST_NAMES[(temp.sem * 2 + branch.code.charCodeAt(1)) % LAST_NAMES.length];
       const faculty = `Dr. ${fName} ${lName}`;
 
-      await prisma.course.create({
-        data: {
-          code,
-          name: temp.name,
-          faculty,
-          credits: temp.credits,
-          category: temp.category,
-          semester: temp.sem,
-        }
-      });
+      try {
+        await prisma.course.upsert({
+          where: { code },
+          update: { name: temp.name, faculty, credits: temp.credits, category: temp.category, semester: temp.sem, department: branch.name, sections: "A,B,C,D" },
+          create: {
+            code,
+            name: temp.name,
+            faculty,
+            credits: temp.credits,
+            category: temp.category,
+            semester: temp.sem,
+            department: branch.name,
+            sections: "A,B,C,D",
+            isOffered: true,
+            status: "Active",
+          },
+        });
+      } catch (err) {}
     }
   }
 
@@ -358,3 +366,16 @@ export async function seedDatabase() {
 
   console.log("Database seed completed successfully.");
 }
+
+if (require.main === module) {
+  seedDatabase()
+    .then(() => {
+      console.log("Seeding finished successfully.");
+      process.exit(0);
+    })
+    .catch((err) => {
+      console.error("Seeding failed:", err);
+      process.exit(1);
+    });
+}
+

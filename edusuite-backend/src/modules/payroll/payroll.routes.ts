@@ -209,6 +209,99 @@ router.get("/employee/:employeeId", authenticateToken, async (req: Authenticated
 });
 
 // ==========================================
+// 3B. AUTHENTICATED FACULTY ME PAYROLL API
+// ==========================================
+router.get("/me", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.userId;
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized. Faculty authentication token required." });
+  }
+
+  try {
+    const faculty = await prisma.faculty.findFirst({
+      where: { OR: [{ id: userId }, { rollNumber: userId }] },
+    });
+
+    const empId = faculty?.rollNumber || faculty?.id || userId;
+
+    const payrolls = await prisma.payrollRecord.findMany({
+      where: {
+        OR: [
+          { facultyId: faculty?.id || userId },
+          { employeeId: empId },
+        ],
+      },
+      include: { approvalRequests: true },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const currentPayroll = payrolls[0] || null;
+
+    let activeApproval = null;
+    if (currentPayroll) {
+      activeApproval = await prisma.approvalRequest.findFirst({
+        where: { payrollRecordId: currentPayroll.id },
+        orderBy: { createdAt: "desc" },
+      });
+    }
+
+    const reimbursements = await prisma.reimbursement.findMany({
+      where: { OR: [{ facultyId: faculty?.id || userId }, { employeeId: empId }] },
+      orderBy: { claimDate: "desc" },
+    });
+
+    const bankDetails = await prisma.bankDetails.findFirst({
+      where: { OR: [{ facultyId: faculty?.id || userId }, { employeeId: empId }] },
+    });
+
+    let earnings = { basicPay: currentPayroll?.basicPay || 75000, da: currentPayroll?.da || 7500, hra: currentPayroll?.hra || 22500, medical: 2000, academic: 3000, research: 2000, transport: 1500, other: 1000, total: currentPayroll?.grossSalary || 114500 };
+    let deductionsList = { pf: Math.round((currentPayroll?.basicPay || 75000) * 0.06), profTax: 200, incomeTax: Math.round((currentPayroll?.deductions || 10420) * 0.4), esi: 500, lateAttendance: 0, leaveDeduction: 0, loanEmi: 0, insurance: 1000, other: 0, total: currentPayroll?.deductions || 10420 };
+    let attendanceImpact = { workingDays: 26, presentDays: 26, approvedLeave: 0, lopDays: 0, lateEntries: 0, overtimeHours: 0, extraClasses: 0, invigilationHours: 4, attendanceContribution: 0 };
+
+    if (currentPayroll?.earningsJson) { try { earnings = JSON.parse(currentPayroll.earningsJson); } catch {} }
+    if (currentPayroll?.deductionsJson) { try { deductionsList = JSON.parse(currentPayroll.deductionsJson); } catch {} }
+    if (currentPayroll?.attendanceImpactJson) { try { attendanceImpact = JSON.parse(currentPayroll.attendanceImpactJson); } catch {} }
+
+    const approvalProgress = {
+      stage: activeApproval?.currentStage || "HR_VERIFICATION",
+      status: activeApproval?.status || currentPayroll?.status || "Pending Approval",
+      hrVerifiedBy: activeApproval?.hrVerifiedBy || null,
+      hrVerifiedAt: activeApproval?.hrVerifiedAt || null,
+      financeReviewedBy: activeApproval?.financeReviewedBy || null,
+      financeReviewedAt: activeApproval?.financeReviewedAt || null,
+      superAdminDecisionBy: activeApproval?.superAdminDecisionBy || null,
+      superAdminDecisionAt: activeApproval?.superAdminDecisionAt || null,
+    };
+
+    return res.json({
+      faculty: {
+        id: faculty?.id || userId,
+        name: faculty?.name || currentPayroll?.employeeName || "Faculty Member",
+        department: faculty?.department || currentPayroll?.department || "CSE",
+        designation: currentPayroll?.designation || "Associate Professor",
+      },
+      currentPayroll,
+      payrollHistory: payrolls,
+      earnings,
+      deductionsList,
+      attendanceImpact,
+      reimbursements,
+      bankDetails: {
+        bankName: bankDetails?.bankName || "HDFC Bank Ltd",
+        accountNumber: maskBankAccount(bankDetails?.accountNumber || "5010022448812"),
+        ifscCode: bankDetails?.ifscCode || "HDFC0000240",
+        branch: bankDetails?.branch || "Hitech City, Hyderabad",
+        nomineeName: bankDetails?.nomineeName || "Spouse / Dependent",
+        salaryCreditAccount: true,
+      },
+      approvalProgress,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
 // 4. GET SINGLE PAYSLIP DETAIL API
 // ==========================================
 router.get("/:id", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
@@ -366,12 +459,31 @@ router.post("/generate", authenticateToken, requireSuperAdmin, async (req: Authe
           deductions: totalDeductions,
           grossSalary,
           netSalary,
-          status: "Processing",
+          status: "Pending Approval",
           paymentDate: "Pending",
           bankAccount: maskBankAccount(""),
           earningsJson,
           deductionsJson,
           attendanceImpactJson,
+        },
+      });
+
+      // Create linked ApprovalRequest for 3-tier institutional workflow
+      const reqNum = `REQ-PAY-${Math.floor(100000 + Math.random() * 900000)}`;
+      await tx.approvalRequest.create({
+        data: {
+          requestNumber: reqNum,
+          requestType: "PAYROLL",
+          title: `${month} Monthly Payroll Approval for ${newRecord.employeeName}`,
+          description: `Faculty salary disbursement for ${newRecord.department} (${newRecord.designation}). Net Salary: ₹${netSalary.toLocaleString("en-IN")}.`,
+          amount: netSalary,
+          payrollRecordId: newRecord.id,
+          requestedBy: req.userRole || "HR Manager",
+          requestedByRole: req.userRole || "hr",
+          department: newRecord.department,
+          currentStage: "HR_VERIFICATION",
+          status: "SUBMITTED",
+          priority: netSalary > 100000 ? "Critical" : "High",
         },
       });
 
@@ -425,6 +537,61 @@ router.put("/:id/status", authenticateToken, requireSuperAdmin, async (req: Auth
 });
 
 // ==========================================
+// 6B. PAYROLL DISBURSEMENT API (FINAL PAID TRANSITION)
+// ==========================================
+router.post("/:id/disburse", authenticateToken, requireSuperAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    const existing = await prisma.payrollRecord.findUnique({
+      where: { id },
+      include: { approvalRequests: true },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: "Payroll record not found." });
+    }
+
+    if (existing.status === "Paid") {
+      return res.status(400).json({ error: "Payroll for this period has already been disbursed and paid." });
+    }
+
+    // Disburse payroll inside a transaction
+    const today = new Date().toISOString().split("T")[0];
+    const updated = await prisma.$transaction(async (tx) => {
+      const record = await tx.payrollRecord.update({
+        where: { id },
+        data: {
+          status: "Paid",
+          paymentDate: today,
+        },
+      });
+
+      if (record.facultyId) {
+        const student = await tx.student.findFirst({ where: { id: record.facultyId } });
+        if (student) {
+          await tx.notification.create({
+            data: {
+              studentId: student.id,
+              title: `Salary Disbursed for ${record.monthYear}`,
+              message: `Your net salary of ₹${record.netSalary.toLocaleString("en-IN")} has been credited to your bank account (${record.bankAccount || "HDFC Bank"}).`,
+              type: "HIGH",
+            },
+          });
+        }
+      }
+
+      return record;
+    });
+
+    await auditLog(req, "PAYROLL_DISBURSED", "Payroll ERP", "PayrollRecord", id);
+    return res.json(updated);
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
 // 7. BANK DETAILS & CHANGE REQUEST APIS
 // ==========================================
 router.get("/bank-details", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
@@ -459,22 +626,44 @@ router.post("/bank-change-request", authenticateToken, async (req: Authenticated
   const userId = req.userId || "EMP010";
 
   try {
-    const created = await prisma.bankChangeRequest.create({
-      data: {
-        employeeId: userId,
-        facultyId: req.userRole === "faculty" ? userId : null,
-        requestedBankName: bankName,
-        requestedAccountNumber: accountNumber,
-        requestedIfscCode: ifscCode,
-        requestedBranch: branch,
-        requestedNomineeName: nomineeName,
-        status: "Pending",
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const created = await tx.bankChangeRequest.create({
+        data: {
+          employeeId: userId,
+          facultyId: req.userRole === "faculty" ? userId : null,
+          requestedBankName: bankName,
+          requestedAccountNumber: accountNumber,
+          requestedIfscCode: ifscCode,
+          requestedBranch: branch,
+          requestedNomineeName: nomineeName,
+          status: "Pending",
+        },
+      });
+
+      const reqNum = `REQ-BNK-${Math.floor(100000 + Math.random() * 900000)}`;
+      await tx.approvalRequest.create({
+        data: {
+          requestNumber: reqNum,
+          requestType: "BANK_CHANGE",
+          title: `Bank Details Modification Request (${bankName})`,
+          description: `Employee requested salary credit bank account change to ${bankName} (${accountNumber ? maskBankAccount(accountNumber) : "New Account"}).`,
+          amount: 0,
+          bankChangeRequestId: created.id,
+          requestedBy: req.userRole === "faculty" ? "Faculty Member" : userId,
+          requestedByRole: req.userRole || "faculty",
+          department: "HRMS",
+          currentStage: "HR_VERIFICATION",
+          status: "SUBMITTED",
+          priority: "Medium",
+        },
+      });
+
+      return created;
     });
 
-    await auditLog(req, "BANK_CHANGE_REQUESTED", "Payroll ERP", "BankChangeRequest", created.id);
+    await auditLog(req, "BANK_CHANGE_REQUESTED", "Payroll ERP", "BankChangeRequest", result.id);
 
-    return res.status(201).json({ success: true, message: "Bank change request submitted successfully.", requestId: created.id });
+    return res.status(201).json({ success: true, message: "Bank change request submitted successfully.", requestId: result.id });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }

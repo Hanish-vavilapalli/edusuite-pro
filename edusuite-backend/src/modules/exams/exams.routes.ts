@@ -18,7 +18,7 @@ router.post("/register", authenticateToken, async (req: AuthenticatedRequest, re
     // Check if course registration exists and status is exam_registration
     const reg = await prisma.courseRegistration.findUnique({
       where: {
-        userId_courseId: { userId, courseId },
+        studentId_courseId: { studentId: userId, courseId },
       },
     });
 
@@ -29,7 +29,7 @@ router.post("/register", authenticateToken, async (req: AuthenticatedRequest, re
     // Update status to exam_registered
     const updated = await prisma.courseRegistration.update({
       where: {
-        userId_courseId: { userId, courseId },
+        studentId_courseId: { studentId: userId, courseId },
       },
       data: {
         status: "exam_registered",
@@ -50,7 +50,7 @@ router.get("/hall-ticket", authenticateToken, async (req: AuthenticatedRequest, 
     // Fetch all registered courses for user
     const registrations = await prisma.courseRegistration.findMany({
       where: {
-        userId,
+        studentId: userId,
       },
       include: {
         course: true,
@@ -545,10 +545,10 @@ router.post("/courses/approve", authenticateToken, async (req: AuthenticatedRequ
     for (const s of students) {
       await prisma.notification.create({
         data: {
-          userId: s.id,
+          studentId: s.id,
           title: "New Courses Approved & Published",
           message: `Subject offerings for Sem ${semester} have been officially approved. Registration Deadline: ${deadline || "N/A"}.`,
-          category: "Academic"
+          type: "HIGH"
         }
       });
     }
@@ -802,7 +802,7 @@ router.get("/eligibility", authenticateToken, async (req: AuthenticatedRequest, 
     for (const s of students) {
       // 1. Check Course Registrations
       const regCount = await prisma.courseRegistration.count({
-        where: { userId: s.id, course: { semester: sem } }
+        where: { studentId: s.id, course: { semester: sem } }
       });
       const isRegistered = regCount > 0 || (s.rollNumber !== '22CS102' && s.rollNumber !== '22EC067');
       const registeredCoursesCount = isRegistered ? Math.max(regCount, 4) : 0;
@@ -1013,11 +1013,10 @@ router.post("/hall-tickets/release", authenticateToken, async (req: Authenticate
       // Create student notification
       await prisma.notification.create({
         data: {
-          userId: studentId,
+          studentId,
           title: "Hall Ticket Released",
           message: `Official Admit Card / Hall Ticket for Semester ${sem} End Examinations has been released. You can view & download PDF now.`,
-          category: "Examinations",
-          priority: "High"
+          type: "HIGH"
         }
       });
     }
@@ -1451,11 +1450,10 @@ router.post("/timetables/:id/approve", authenticateToken, async (req: Authentica
     for (const student of students) {
       await prisma.notification.create({
         data: {
-          userId: student.id,
+          studentId: student.id,
           title: notifTitle,
           message: notifMsg,
-          category: "Examinations",
-          priority: "High"
+          type: "HIGH"
         }
       });
     }
@@ -1709,7 +1707,7 @@ router.get("/schedules/:scheduleId/branches/:branch/subjects", authenticateToken
       return res.json(courses.map(c => ({
         id: c.id,
         code: c.code,
-        name: c.title,
+        name: c.name,
         credits: c.credits || 4,
         department: c.department
       })));
@@ -1776,7 +1774,7 @@ router.get("/faculty-list", authenticateToken, async (req: AuthenticatedRequest,
           id: f.id,
           name: f.name,
           department: f.department,
-          designation: f.designation || "Assistant Professor",
+          designation: (f as any).designation || "Assistant Professor",
           currentLoad: currentLoad,
           maxCapacity: 30
         });

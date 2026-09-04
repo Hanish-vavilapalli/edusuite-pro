@@ -70,8 +70,25 @@ class ApiClient {
     }
   }
 
-  public async get<T = any>(endpoint: string): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, { method: "GET" });
+  public async get<T = any>(
+    endpoint: string,
+    options: RequestInit & { params?: Record<string, any> } = {}
+  ): Promise<ApiResponse<T>> {
+    let finalEndpoint = endpoint;
+    if (options.params) {
+      const searchParams = new URLSearchParams();
+      Object.entries(options.params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          searchParams.append(key, String(value));
+        }
+      });
+      const queryString = searchParams.toString();
+      if (queryString) {
+        finalEndpoint += (finalEndpoint.includes("?") ? "&" : "?") + queryString;
+      }
+    }
+    const { params, ...fetchOptions } = options;
+    return this.request<T>(finalEndpoint, { method: "GET", ...fetchOptions });
   }
 
   public async post<T = any>(endpoint: string, body?: any): Promise<ApiResponse<T>> {
