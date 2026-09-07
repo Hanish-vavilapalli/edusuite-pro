@@ -1,0 +1,14 @@
+CREATE INDEX IF NOT EXISTS "Student_parentId_idx" ON public."Student" ("parentId");
+CREATE INDEX IF NOT EXISTS "LmsResource_courseId_idx" ON public."LmsResource" ("courseId");
+CREATE INDEX IF NOT EXISTS "LmsResource_facultyId_idx" ON public."LmsResource" ("facultyId");
+CREATE INDEX IF NOT EXISTS "CourseRegistration_courseId_idx" ON public."CourseRegistration" ("courseId");
+CREATE INDEX IF NOT EXISTS "NptelRecord_courseId_idx" ON public."NptelRecord" ("courseId");
+CREATE INDEX IF NOT EXISTS "Notification_studentId_idx" ON public."Notification" ("studentId");
+CREATE INDEX IF NOT EXISTS "BankChangeRequest_facultyId_idx" ON public."BankChangeRequest" ("facultyId");
+CREATE INDEX IF NOT EXISTS "Reimbursement_facultyId_idx" ON public."Reimbursement" ("facultyId");
+CREATE INDEX IF NOT EXISTS "ApprovalRequest_payrollRecordId_idx" ON public."ApprovalRequest" ("payrollRecordId");
+CREATE INDEX IF NOT EXISTS "ApprovalRequest_reimbursementId_idx" ON public."ApprovalRequest" ("reimbursementId");
+CREATE INDEX IF NOT EXISTS "ApprovalRequest_bankChangeRequestId_idx" ON public."ApprovalRequest" ("bankChangeRequestId");
+CREATE INDEX IF NOT EXISTS "BookBorrow_bookId_idx" ON public."BookBorrow" ("bookId");
+CREATE INDEX IF NOT EXISTS "BookBorrow_copyId_idx" ON public."BookBorrow" ("copyId");
+CREATE INDEX IF NOT EXISTS "LibraryFine_borrowId_idx" ON public."LibraryFine" ("borrowId");

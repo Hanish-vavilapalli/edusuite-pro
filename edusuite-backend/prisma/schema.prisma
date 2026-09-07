@@ -32,6 +32,8 @@ model Student {
   notifications       Notification[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
+
+  @@index([parentId])
 }
 
 model Parent {
@@ -121,6 +123,9 @@ model LmsResource {
   faculty      Faculty  @relation(fields: [facultyId], references: [id])
   uploadedAt   DateTime @default(now())
   createdAt    DateTime @default(now())
+
+  @@index([courseId])
+  @@index([facultyId])
 }
 
 model CourseRegistration {
@@ -133,6 +138,7 @@ model CourseRegistration {
   registeredAt DateTime @default(now())
 
   @@unique([studentId, courseId])
+  @@index([courseId])
 }
 
 model NptelRecord {
@@ -146,6 +152,7 @@ model NptelRecord {
   createdAt      DateTime @default(now())
 
   @@unique([studentId, courseId])
+  @@index([courseId])
 }
 
 model AttendanceRecord {
@@ -177,6 +184,8 @@ model Notification {
   isRead    Boolean  @default(false)
   type      String   @default("INFO")
   createdAt DateTime @default(now())
+
+  @@index([studentId])
 }
 
 model Department {
@@ -375,6 +384,7 @@ model BankChangeRequest {
   updatedAt            DateTime          @updatedAt
 
   @@index([employeeId])
+  @@index([facultyId])
   @@index([status])
 }
 
@@ -394,6 +404,7 @@ model Reimbursement {
   updatedAt      DateTime          @updatedAt
 
   @@index([employeeId])
+  @@index([facultyId])
   @@index([status])
 }
 
@@ -481,6 +492,9 @@ model ApprovalRequest {
   @@index([department])
   @@index([module])
   @@index([workflowCode])
+  @@index([payrollRecordId])
+  @@index([reimbursementId])
+  @@index([bankChangeRequestId])
 }
 
 model Alumni {
@@ -792,6 +806,8 @@ model BookBorrow {
   @@index([borrowerRollNo])
   @@index([status])
   @@index([dueDate])
+  @@index([bookId])
+  @@index([copyId])
 }
 
 model BookReservation {
@@ -839,6 +855,7 @@ model LibraryFine {
 
   @@index([memberRollNo])
   @@index([status])
+  @@index([borrowId])
 }
 
 model LibraryIDCard {
