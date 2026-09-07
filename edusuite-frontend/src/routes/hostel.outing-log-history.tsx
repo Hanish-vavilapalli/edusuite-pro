@@ -1,13 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { HostelOutingLogHistoryView } from "@/modules/hostel";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/hostel/outing-log-history")({
-  head: () => ({
-    meta: [{ title: "Outing Log History — EduSuite Pro Hostel" }],
-  }),
-  component: HostelOutingLogHistoryPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/hostel/log-history" });
+  },
 });
-
-function HostelOutingLogHistoryPage() {
-  return <HostelOutingLogHistoryView />;
-}

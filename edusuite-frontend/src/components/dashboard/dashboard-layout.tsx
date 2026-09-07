@@ -7,9 +7,20 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { brand } from "@/config/branding";
 import { useRole } from "@/context/role-context";
 
-export function DashboardLayout({ children }: { children: ReactNode }) {
+export function DashboardLayout({
+  children,
+  hideTopbar,
+}: {
+  children: ReactNode;
+  hideTopbar?: boolean;
+}) {
   const { profile } = useRole();
   const showAi = profile.featureFlags?.["aiAssistant"] !== false;
+  const isHostelRoute =
+    typeof window !== "undefined" &&
+    (window.location.pathname.startsWith("/hostel") ||
+      window.location.pathname.startsWith("/student"));
+  const shouldHideTopbar = hideTopbar || isHostelRoute;
 
   return (
     <SidebarProvider>

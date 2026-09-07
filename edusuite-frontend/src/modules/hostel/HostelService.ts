@@ -1,781 +1,729 @@
 import api from "@/lib/api";
 
-export interface HostelRoom {
+export interface CampusBlock {
   id: string;
-  roomNo: string;
-  block: "Block A (Boys)" | "Block B (Girls)" | "Block C (PG Scholars)";
-  type: "2-Sharing AC" | "2-Sharing Non-AC" | "3-Sharing Non-AC" | "Single AC";
-  capacity: number;
-  occupancy: number;
-  annualFee: number;
-  status: "Available" | "Full" | "Maintenance";
-}
-
-export interface ResidentStudent {
-  id: string;
-  rollNo: string;
   name: string;
-  department: string;
-  roomNo: string;
-  block: string;
-  feeStatus: "Paid" | "Pending" | "Partial";
-  contact: string;
-  emergencyContact: string;
+  code?: string;
+  type: "Boys Hostel" | "Girls Hostel";
+  letter: "B" | "G";
+  totalCapacity: number;
+  occupied: number;
+  vacant: number;
+  maintenance: number;
+  vacancyRate: string;
+  isRedRate: boolean;
+  floorsCount?: number;
 }
 
-export interface GatePassRequest {
+export interface CampusOutingRequest {
   id: string;
-  rollNo: string;
   studentName: string;
-  roomNo: string;
-  passType: "Outing Pass" | "Home Leave" | "Maintenance Complaint";
-  reason: string;
+  studentId: string;
+  destination?: string;
   fromDate: string;
   toDate: string;
-  status: "Pending" | "Approved" | "Rejected" | "Resolved";
+  reason: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "OUT" | "RETURNED";
+  parentApproval: "PENDING" | "APPROVED" | "REJECTED";
+  wardenApproval?: "PENDING" | "APPROVED" | "REJECTED";
+  requestedAt: string;
 }
 
-// Default initial datasets as memory fallback and seed values
-export interface HostelBlockInfo {
+export interface MessMealTiming {
+  id?: string;
+  name: string;
+  time?: string;
+  timeRange?: string;
+  startTime?: string;
+  endTime?: string;
+  status: "Active" | "Inactive";
+}
+
+export interface MenuScheduleRow {
+  id?: string;
+  date?: string;
+  dateString?: string;
+  day?: string;
+  dayName?: string;
+  breakfastNonVeg: boolean;
+  lunchNonVeg: boolean;
+  snacksNonVeg: boolean;
+  dinnerNonVeg: boolean;
+  notes: string;
+}
+
+export interface AttendanceLogItem {
+  id: string;
+  name?: string;
+  studentName?: string;
+  userId: string;
+  block?: string;
+  blockName?: string;
+  floor?: string;
+  floorName?: string;
+  room?: string;
+  roomNumber?: string;
+  type?: "CHECK-IN" | "CHECK-OUT";
+  eventType?: "CHECK-IN" | "CHECK-OUT";
+  timestamp: string;
+  device?: string;
+  deviceName?: string;
+  method: string;
+}
+
+export interface SystemUserItem {
   id: string;
   name: string;
-  capacity: number;
-  occupiedRooms: number;
-  vacantRooms: number;
-  underMaintenance: number;
-  occupancyPercentage: number;
-  annualRevenue: number;
-  currentWarden: string;
-  healthStatus: "Healthy" | "Warning" | "Critical";
-  roomUtilizationPercentage: number;
-  maintenanceDue: string;
-  inspectionDate: string;
-  quickStatusBadge: "Healthy" | "Warning" | "Critical";
-}
-
-export interface EnhancedResidentStudent extends ResidentStudent {
-  year: string;
-  checkInDate: string;
-  attendanceStatus: string;
-  disciplinaryStatus: string;
-  medicalAlerts: string;
-  residentStatus: "Present" | "On Leave" | "Weekend Outing" | "Suspended";
-  isInternational: boolean;
-  isScholarship: boolean;
-}
-
-export interface GatePassSecurityMetrics {
-  requestsToday: number;
-  approved: number;
-  rejected: number;
-  pending: number;
-  emergencyPasses: number;
-  avgApprovalTime: string;
-  securityIncidents: number;
-  lateEntries: number;
-  visitorRecords: number;
-}
-
-export interface ComplaintComplianceSummary {
-  complaints: {
-    open: number;
-    inProgress: number;
-    resolved: number;
-    escalated: number;
-  };
-  compliance: {
-    fireSafety: string;
-    hostelRules: string;
-    visitorRegister: string;
-    securityAudit: string;
-    inspectionStatus: string;
-    governmentCompliance: string;
-  };
-}
-
-export interface GatePassDetailItem {
-  id: string;
-  studentName: string;
-  rollNo: string;
+  username: string;
+  rollNumber: string;
+  jntuNumber?: string;
+  email: string;
+  contact: string;
+  parentContact?: string;
   department: string;
-  hostelBlock: string;
-  passType: "Outing Pass" | "Home Leave" | "Emergency Pass";
-  exitTime: string;
-  expectedReturn: string;
-  status: "Approved" | "Pending" | "Rejected" | "Late Return";
+  branch?: string;
+  year: number;
+  yearText?: string;
+  semester: number;
+  semesterText?: string;
+  section?: string;
+  blockName?: string;
+  floorName?: string;
+  roomNumber?: string;
+  bedNumber?: string;
+  allocationStatus?: "ALLOCATED" | "PENDING" | "UNALLOCATED";
+  role: "Student" | "Admin" | "Staff";
+  status: "ACTIVE" | "PENDING" | "DEACTIVATED";
+  defaultPassword?: string;
+  lastActive: string;
+  lastActiveIp: string;
+  hasLoginAccess?: boolean;
 }
 
-export interface HostelComplaintDetailItem {
-  id: string;
-  complaintId: string;
-  studentName: string;
-  hostelBlock: string;
-  category: "Plumbing" | "Electrical" | "Wi-Fi Network" | "Furniture / Maintenance";
-  priority: "High" | "Medium" | "Low";
-  assignedWarden: string;
-  status: "Open" | "In Progress" | "Resolved";
-}
-
-export interface ExecutiveHostelAnalyticsData {
-  monthlyOccupancyTrend: { month: string; occupancyPct: number }[];
-  hostelRevenue: string;
-  maintenanceCost: string;
-  messUtilization: string;
-  studentSatisfaction: string;
-  complaintTrend: string;
-  gatePassStats: string;
-  feeCollection: string;
-  mostOccupiedHostel: string;
-  leastOccupiedHostel: string;
-  maintenanceTrend: string;
-  inspectionReports: string;
-}
-
-export interface HostelConfig {
-  feeStructure: {
-    singleAc: number;
-    doubleAc: number;
-    doubleNonAc: number;
-    tripleNonAc: number;
-    cautionDeposit: number;
-    messFeeAnnual: number;
+export interface DashboardMetricsResponse {
+  students: {
+    total: number;
+    active: number;
+    onLeave: number;
+    suspended: number;
   };
-  roomCategories: string[];
-  occupancyRules: string;
-  checkInPolicy: string;
-  checkOutPolicy: string;
-  visitorPolicy: string;
-  gatePassPolicy: string;
-  lateEntryPolicy: string;
-  hostelTimings: string;
-  messTimings: string;
-  fineRules: string;
-  maintenanceSchedule: string;
-  emergencyContacts: string;
-  hostelHolidays: string;
-  notificationRules: string;
-}
-
-export interface HostelHealthStatus {
-  occupancyStatus: "Optimal" | "High" | "Critical";
-  electricityStatus: "Operational" | "Grid Backup Active" | "Degraded";
-  waterSupply: "Normal (98% Tank)" | "Maintenance Planned" | "Low Supply";
-  wifiStatus: "1 Gbps Active" | "Partial Outage" | "Down";
-  cctvStatus: "128/128 Cameras Active" | "2 Offline" | "Critical Fault";
-  fireSafetyCompliance: "Compliant (Certified)" | "Audit Due" | "Non-Compliant";
-  securityStatus: "24/7 Guarded" | "Understaffed" | "Alert Mode";
-  maintenanceStatus: "Low Backlog" | "Moderate" | "High Backlog";
-  overallHealthScore: number;
-}
-
-export interface MaintenanceSummary {
-  pendingMaintenance: number;
-  completedRepairs: number;
-  criticalIssues: number;
-  roomsUnderMaintenance: number;
-  estimatedCompletion: string;
-}
-
-export interface HostelAlert {
-  id: string;
-  severity: "high" | "medium" | "info";
-  title: string;
-  description: string;
-  timestamp: string;
-}
-
-export interface HostelActivityLog {
-  id: string;
-  date: string;
-  user: string;
-  action: string;
-  category: string;
-}
-
-export interface HostelStaffSummary {
-  chiefWarden: string;
-  assistantWardensCount: number;
-  securityStaffCount: number;
-  maintenanceStaffCount: number;
-  messSupervisor: string;
-  staffAvailability: string;
-  pendingLeaveRequests: number;
-}
-
-export interface PolicyComplianceStatus {
-  fireSafetyStatus: "Valid (Expires Dec 2026)";
-  governmentCompliance: "100% Certified";
-  healthInspectionStatus: "Grade A+ (Passed July 2026)";
-  buildingSafetyCertificate: "Valid (Renewal 2028)";
-  insuranceStatus: "Active Comprehensive Cover";
-  lastAuditDate: string;
-}
-
-export const INITIAL_BLOCKS: HostelBlockInfo[] = [
-  {
-    id: "BLK-01",
-    name: "Block A (Boys)",
-    capacity: 450,
-    occupiedRooms: 433,
-    vacantRooms: 17,
-    underMaintenance: 0,
-    occupancyPercentage: 96.2,
-    annualRevenue: 40755000,
-    currentWarden: "Dr. Rajesh Kumar",
-    healthStatus: "Healthy",
-    roomUtilizationPercentage: 96.2,
-    maintenanceDue: "Water Tank Audit (Sunday)",
-    inspectionDate: "2026-07-28",
-    quickStatusBadge: "Healthy",
-  },
-  {
-    id: "BLK-02",
-    name: "Block B (Girls)",
-    capacity: 400,
-    occupiedRooms: 379,
-    vacantRooms: 21,
-    underMaintenance: 0,
-    occupancyPercentage: 94.8,
-    annualRevenue: 31200000,
-    currentWarden: "Dr. Meenakshi Sundaram",
-    healthStatus: "Healthy",
-    roomUtilizationPercentage: 94.8,
-    maintenanceDue: "HVAC Servicing Sep 2026",
-    inspectionDate: "2026-07-25",
-    quickStatusBadge: "Healthy",
-  },
-  {
-    id: "BLK-03",
-    name: "Block C (PG Scholars)",
-    capacity: 150,
-    occupiedRooms: 132,
-    vacantRooms: 17,
-    underMaintenance: 1,
-    occupancyPercentage: 88.0,
-    annualRevenue: 15840000,
-    currentWarden: "Prof. Vikramaditya",
-    healthStatus: "Warning",
-    roomUtilizationPercentage: 88.0,
-    maintenanceDue: "Room C-304 AC Repair",
-    inspectionDate: "2026-07-30",
-    quickStatusBadge: "Warning",
-  },
-];
-
-export const INITIAL_ROOMS: HostelRoom[] = [
-  {
-    id: "RM-101",
-    roomNo: "A-201",
-    block: "Block A (Boys)",
-    type: "2-Sharing AC",
-    capacity: 2,
-    occupancy: 2,
-    annualFee: 95000,
-    status: "Full",
-  },
-  {
-    id: "RM-102",
-    roomNo: "A-202",
-    block: "Block A (Boys)",
-    type: "2-Sharing Non-AC",
-    capacity: 2,
-    occupancy: 1,
-    annualFee: 75000,
-    status: "Available",
-  },
-  {
-    id: "RM-103",
-    roomNo: "B-105",
-    block: "Block B (Girls)",
-    type: "2-Sharing AC",
-    capacity: 2,
-    occupancy: 2,
-    annualFee: 95000,
-    status: "Full",
-  },
-  {
-    id: "RM-104",
-    roomNo: "B-106",
-    block: "Block B (Girls)",
-    type: "3-Sharing Non-AC",
-    capacity: 3,
-    occupancy: 2,
-    annualFee: 65000,
-    status: "Available",
-  },
-  {
-    id: "RM-105",
-    roomNo: "C-304",
-    block: "Block C (PG Scholars)",
-    type: "Single AC",
-    capacity: 1,
-    occupancy: 0,
-    annualFee: 120000,
-    status: "Maintenance",
-  },
-];
-
-export const ENHANCED_RESIDENTS: EnhancedResidentStudent[] = [
-  {
-    id: "RES-001",
-    rollNo: "22CSE001",
-    name: "Aarav Sharma",
-    department: "CSE",
-    year: "3rd Year",
-    roomNo: "A-201",
-    block: "Block A (Boys)",
-    checkInDate: "2024-08-01",
-    feeStatus: "Paid",
-    attendanceStatus: "98% Present",
-    disciplinaryStatus: "Clean Record",
-    contact: "+91 9876543210",
-    emergencyContact: "+91 9876500001",
-    medicalAlerts: "None",
-    residentStatus: "Present",
-    isInternational: false,
-    isScholarship: true,
-  },
-  {
-    id: "RES-002",
-    rollNo: "22ECE042",
-    name: "Ananya Iyer",
-    department: "ECE",
-    year: "3rd Year",
-    roomNo: "B-105",
-    block: "Block B (Girls)",
-    checkInDate: "2024-08-02",
-    feeStatus: "Paid",
-    attendanceStatus: "96% Present",
-    disciplinaryStatus: "Clean Record",
-    contact: "+91 9123456789",
-    emergencyContact: "+91 9123400002",
-    medicalAlerts: "Asthma (Inhaler in Room)",
-    residentStatus: "Present",
-    isInternational: false,
-    isScholarship: false,
-  },
-  {
-    id: "RES-003",
-    rollNo: "23MECH018",
-    name: "Rohan Verma",
-    department: "Mechanical",
-    year: "2nd Year",
-    roomNo: "A-202",
-    block: "Block A (Boys)",
-    checkInDate: "2025-07-25",
-    feeStatus: "Paid",
-    attendanceStatus: "92% Present",
-    disciplinaryStatus: "Clean Record",
-    contact: "+91 9811223344",
-    emergencyContact: "+91 9811220000",
-    medicalAlerts: "None",
-    residentStatus: "Weekend Outing",
-    isInternational: false,
-    isScholarship: true,
-  },
-  {
-    id: "RES-004",
-    rollNo: "24CIVIL009",
-    name: "Priya Nair",
-    department: "Civil",
-    year: "1st Year",
-    roomNo: "B-106",
-    block: "Block B (Girls)",
-    checkInDate: "2025-08-10",
-    feeStatus: "Partial",
-    attendanceStatus: "95% Present",
-    disciplinaryStatus: "Clean Record",
-    contact: "+91 9744556677",
-    emergencyContact: "+91 9744550000",
-    medicalAlerts: "Dust Allergy",
-    residentStatus: "On Leave",
-    isInternational: true,
-    isScholarship: false,
-  },
-];
-
-export const DEFAULT_SECURITY_METRICS: GatePassSecurityMetrics = {
-  requestsToday: 18,
-  approved: 14,
-  rejected: 2,
-  pending: 2,
-  emergencyPasses: 3,
-  avgApprovalTime: "45 Mins",
-  securityIncidents: 0,
-  lateEntries: 4,
-  visitorRecords: 24,
-};
-
-export const INITIAL_GATE_PASS_DETAILS: GatePassDetailItem[] = [
-  {
-    id: "GPD-101",
-    studentName: "Aarav Sharma",
-    rollNo: "22CSE001",
-    department: "Computer Science",
-    hostelBlock: "Block A (Boys)",
-    passType: "Home Leave",
-    exitTime: "2026-08-02 09:00 AM",
-    expectedReturn: "2026-08-04 08:00 PM",
-    status: "Approved",
-  },
-  {
-    id: "GPD-102",
-    studentName: "Priya Nair",
-    rollNo: "24CIVIL009",
-    department: "Civil Engineering",
-    hostelBlock: "Block B (Girls)",
-    passType: "Outing Pass",
-    exitTime: "2026-08-04 04:30 PM",
-    expectedReturn: "2026-08-04 08:30 PM",
-    status: "Pending",
-  },
-  {
-    id: "GPD-103",
-    studentName: "Rohan Verma",
-    rollNo: "23MECH018",
-    department: "Mechanical",
-    hostelBlock: "Block A (Boys)",
-    passType: "Outing Pass",
-    exitTime: "2026-08-03 05:00 PM",
-    expectedReturn: "2026-08-03 08:30 PM",
-    status: "Late Return",
-  },
-  {
-    id: "GPD-104",
-    studentName: "Ananya Iyer",
-    rollNo: "22ECE042",
-    department: "Electronics",
-    hostelBlock: "Block B (Girls)",
-    passType: "Emergency Pass",
-    exitTime: "2026-08-05 10:15 AM",
-    expectedReturn: "2026-08-05 06:00 PM",
-    status: "Approved",
-  },
-  {
-    id: "GPD-105",
-    studentName: "Vikram Malhotra",
-    rollNo: "23AIDS012",
-    department: "AI & Data Science",
-    hostelBlock: "Block C (PG Scholars)",
-    passType: "Outing Pass",
-    exitTime: "2026-08-05 02:00 PM",
-    expectedReturn: "2026-08-05 07:00 PM",
-    status: "Rejected",
-  },
-];
-
-export const INITIAL_COMPLAINT_DETAILS: HostelComplaintDetailItem[] = [
-  {
-    id: "CMP-001",
-    complaintId: "CMP-2026-084",
-    studentName: "Rohan Verma",
-    hostelBlock: "Block A (Boys)",
-    category: "Plumbing",
-    priority: "High",
-    assignedWarden: "Dr. Rajesh Kumar",
-    status: "In Progress",
-  },
-  {
-    id: "CMP-002",
-    complaintId: "CMP-2026-089",
-    studentName: "Priya Nair",
-    hostelBlock: "Block B (Girls)",
-    category: "Wi-Fi Network",
-    priority: "Medium",
-    assignedWarden: "Dr. Meenakshi Sundaram",
-    status: "Open",
-  },
-  {
-    id: "CMP-003",
-    complaintId: "CMP-2026-072",
-    studentName: "Aarav Sharma",
-    hostelBlock: "Block A (Boys)",
-    category: "Electrical",
-    priority: "Low",
-    assignedWarden: "Dr. Rajesh Kumar",
-    status: "Resolved",
-  },
-  {
-    id: "CMP-004",
-    complaintId: "CMP-2026-091",
-    studentName: "Siddharth Nambiar",
-    hostelBlock: "Block C (PG Scholars)",
-    category: "Furniture / Maintenance",
-    priority: "High",
-    assignedWarden: "Prof. Vikramaditya",
-    status: "In Progress",
-  },
-  {
-    id: "CMP-005",
-    complaintId: "CMP-2026-065",
-    studentName: "Ananya Iyer",
-    hostelBlock: "Block B (Girls)",
-    category: "Plumbing",
-    priority: "Low",
-    assignedWarden: "Dr. Meenakshi Sundaram",
-    status: "Resolved",
-  },
-];
-
-export const DEFAULT_COMPLAINT_COMPLIANCE: ComplaintComplianceSummary = {
-  complaints: {
-    open: 2,
-    inProgress: 3,
-    resolved: 48,
-    escalated: 0,
-  },
-  compliance: {
-    fireSafety: "100% Certified (Valid Dec 2026)",
-    hostelRules: "Fully Compliant",
-    visitorRegister: "Biometric & Digital Logged",
-    securityAudit: "Grade A+ (Passed July 2026)",
-    inspectionStatus: "Passed Municipal Audit",
-    governmentCompliance: "100% Certified",
-  },
-};
-
-export const DEFAULT_ANALYTICS: ExecutiveHostelAnalyticsData = {
-  monthlyOccupancyTrend: [
-    { month: "Jan", occupancyPct: 92.4 },
-    { month: "Feb", occupancyPct: 93.1 },
-    { month: "Mar", occupancyPct: 94.0 },
-    { month: "Apr", occupancyPct: 94.5 },
-    { month: "May", occupancyPct: 91.2 },
-    { month: "Jun", occupancyPct: 88.0 },
-    { month: "Jul", occupancyPct: 93.8 },
-    { month: "Aug", occupancyPct: 94.8 },
-  ],
-  hostelRevenue: "₹8.78 Cr",
-  maintenanceCost: "₹12.4 Lakhs",
-  messUtilization: "96.5%",
-  studentSatisfaction: "4.8 / 5.0",
-  complaintTrend: "-15% MoM Decrease",
-  gatePassStats: "428 Passes Issued / Month",
-  feeCollection: "98.2% Realized",
-  mostOccupiedHostel: "Block A (Boys Hostel - 96.2%)",
-  leastOccupiedHostel: "Block C (PG Scholars - 88.0%)",
-  maintenanceTrend: "Low Backlog (Avg 24h SLA)",
-  inspectionReports: "3/3 Audits Passed (100%)",
-};
-
-export const INITIAL_PASSES: GatePassRequest[] = [
-  {
-    id: "PASS-501",
-    rollNo: "22CSE001",
-    studentName: "Aarav Sharma",
-    roomNo: "A-201",
-    passType: "Home Leave",
-    reason: "Family function during weekend",
-    fromDate: "2026-08-02",
-    toDate: "2026-08-04",
-    status: "Approved",
-  },
-  {
-    id: "PASS-502",
-    rollNo: "24CIVIL009",
-    studentName: "Priya Nair",
-    roomNo: "B-106",
-    passType: "Outing Pass",
-    reason: "Project research equipment procurement",
-    fromDate: "2026-08-04",
-    toDate: "2026-08-04",
-    status: "Pending",
-  },
-];
-
-export const DEFAULT_HOSTEL_CONFIG: HostelConfig = {
-  feeStructure: {
-    singleAc: 120000,
-    doubleAc: 95000,
-    doubleNonAc: 75000,
-    tripleNonAc: 65000,
-    cautionDeposit: 10000,
-    messFeeAnnual: 42000,
-  },
-  roomCategories: ["Single AC", "2-Sharing AC", "2-Sharing Non-AC", "3-Sharing Non-AC"],
-  occupancyRules: "Maximum 1 student per single room. Mandatory biometric check-in at block entry.",
-  checkInPolicy: "New admissions check-in between 9:00 AM - 5:00 PM with verification slip.",
-  checkOutPolicy: "Vacating requires NOC clearance from Library, Accounts & Hostel Warden.",
-  visitorPolicy: "Parents & guardians permitted in visiting hall between 4:00 PM - 7:00 PM weekends only.",
-  gatePassPolicy: "Emergency gate passes authorized by Chief Warden; weekend passes apply via ERP by Thursday 6:00 PM.",
-  lateEntryPolicy: "Curfew at 9:30 PM. Late entry requires prior Warden approval & biometric logging.",
-  hostelTimings: "Curfew: 9:30 PM (Boys & Girls Blocks). Study Quiet Hours: 10:00 PM - 6:00 AM.",
-  messTimings: "Breakfast: 7:30 - 9:00 AM | Lunch: 12:30 - 2:00 PM | Dinner: 7:30 - 9:00 PM.",
-  fineRules: "Late entry fine: ₹500/instance. Property damage cost + 20% penalty. Mess card loss: ₹200.",
-  maintenanceSchedule: "Weekly water tank audit every Sunday. HVAC servicing quarterly. Electrical safety monthly.",
-  emergencyContacts: "Chief Warden: +91 99000 11223 | Security Desk: +91 99000 11224 | Health Clinic: Ext. 404.",
-  hostelHolidays: "Diwali Break (Nov 1-5), Winter Break (Dec 22-Jan 2), Summer Vacation (May 15-Jun 30).",
-  notificationRules: "Automated SMS to parent on late curfew breach. Email alerts for fee dues 15 days prior.",
-};
-
-export const DEFAULT_HOSTEL_HEALTH: HostelHealthStatus = {
-  occupancyStatus: "Optimal",
-  electricityStatus: "Operational",
-  waterSupply: "Normal (98% Tank)",
-  wifiStatus: "1 Gbps Active",
-  cctvStatus: "128/128 Cameras Active",
-  fireSafetyCompliance: "Compliant (Certified)",
-  securityStatus: "24/7 Guarded",
-  maintenanceStatus: "Low Backlog",
-  overallHealthScore: 96,
-};
-
-export const DEFAULT_MAINTENANCE_SUMMARY: MaintenanceSummary = {
-  pendingMaintenance: 3,
-  completedRepairs: 48,
-  criticalIssues: 0,
-  roomsUnderMaintenance: 1,
-  estimatedCompletion: "24 Hours (Room C-304 AC Repair)",
-};
-
-export const INITIAL_ALERTS: HostelAlert[] = [
-  {
-    id: "ALT-101",
-    severity: "high",
-    title: "Students not returned before hostel curfew",
-    description: "3 students delayed return past 9:30 PM curfew in Block A (Boys).",
-    timestamp: "30 Mins ago",
-  },
-  {
-    id: "ALT-102",
-    severity: "medium",
-    title: "High complaint volume in Block B",
-    description: "4 pending Wi-Fi connectivity tickets reported in Girls Block B 2nd floor.",
-    timestamp: "2 Hours ago",
-  },
-  {
-    id: "ALT-103",
-    severity: "info",
-    title: "Fire safety inspection due",
-    description: "Quarterly fire extinguisher & hydrant audit due in 12 days for Block C.",
-    timestamp: "4 Hours ago",
-  },
-  {
-    id: "ALT-104",
-    severity: "high",
-    title: "CCTV offline in Block C",
-    description: "Camera #C-12 in Block C main entrance offline for scheduled maintenance.",
-    timestamp: "1 Hour ago",
-  },
-  {
-    id: "ALT-105",
-    severity: "medium",
-    title: "Visitor register pending verification",
-    description: "2 evening visitor entry logs pending warden counter-signature verification.",
-    timestamp: "3 Hours ago",
-  },
-];
-
-export const INITIAL_ACTIVITIES: HostelActivityLog[] = [
-  {
-    id: "ACT-001",
-    date: "2026-08-05 13:30",
-    user: "System Automated Sync",
-    action: "Gate Pass Statistics Updated",
-    category: "Gate Pass",
-  },
-  {
-    id: "ACT-002",
-    date: "2026-08-05 11:15",
-    user: "Safety Inspection Committee",
-    action: "Hostel Inspection Completed",
-    category: "Inspection",
-  },
-  {
-    id: "ACT-003",
-    date: "2026-08-04 15:45",
-    user: "Fire Safety Auditor",
-    action: "Fire Safety Audit Completed",
-    category: "Compliance",
-  },
-  {
-    id: "ACT-004",
-    date: "2026-08-04 10:20",
-    user: "Warden Office",
-    action: "Complaint Summary Updated",
-    category: "Complaints",
-  },
-  {
-    id: "ACT-005",
-    date: "2026-08-03 16:00",
-    user: "Super Admin",
-    action: "Security Report Generated",
-    category: "Security",
-  },
-  {
-    id: "ACT-006",
-    date: "2026-08-03 09:30",
-    user: "Biometric Security System",
-    action: "Visitor Log Synced",
-    category: "Visitor",
-  },
-];
-
-export const DEFAULT_STAFF_SUMMARY: HostelStaffSummary = {
-  chiefWarden: "Dr. Rajesh Kumar (Prof. Mechanical)",
-  assistantWardensCount: 6,
-  securityStaffCount: 18,
-  maintenanceStaffCount: 12,
-  messSupervisor: "Mr. Suresh Hegde",
-  staffAvailability: "100% On Duty (All shifts manned)",
-  pendingLeaveRequests: 1,
-};
-
-export const DEFAULT_POLICY_COMPLIANCE: PolicyComplianceStatus = {
-  fireSafetyStatus: "Valid (Expires Dec 2026)",
-  governmentCompliance: "100% Certified",
-  healthInspectionStatus: "Grade A+ (Passed July 2026)",
-  buildingSafetyCertificate: "Valid (Renewal 2028)",
-  insuranceStatus: "Active Comprehensive Cover",
-  lastAuditDate: "2026-07-28",
-};
-
-// Warden API Implementations
-
-export async function fetchHostelRooms(): Promise<HostelRoom[]> {
-  try {
-    const res = await api.get("/api/hostel/rooms");
-    if (res && Array.isArray(res.data) && res.data.length > 0) return res.data;
-  } catch {}
-  return INITIAL_ROOMS;
-}
-
-export async function fetchHostelResidents(): Promise<ResidentStudent[]> {
-  try {
-    const res = await api.get("/api/hostel/residents");
-    if (res && Array.isArray(res.data) && res.data.length > 0) return res.data;
-  } catch {}
-  return INITIAL_RESIDENTS;
-}
-
-export async function fetchGatePasses(): Promise<GatePassRequest[]> {
-  try {
-    const res = await api.get("/api/hostel/passes");
-    if (res && Array.isArray(res.data) && res.data.length > 0) return res.data;
-  } catch {}
-  return INITIAL_PASSES;
-}
-
-export async function createHostelRoom(data: Partial<HostelRoom>): Promise<HostelRoom> {
-  try {
-    const res = await api.post("/api/hostel/rooms", data);
-    if (res && res.data && res.data.id) return res.data;
-  } catch {}
-  return {
-    id: `RM-${Math.floor(106 + Math.random() * 900)}`,
-    roomNo: data.roomNo || "A-301",
-    block: data.block || "Block A (Boys)",
-    type: data.type || "2-Sharing AC",
-    capacity: Number(data.capacity) || 2,
-    occupancy: Number(data.occupancy) || 0,
-    annualFee: Number(data.annualFee) || 95000,
-    status: data.status || "Available",
+  rooms: {
+    total: number;
+    occupied: number;
+    vacant: number;
+    maintenance: number;
+    occupancyRate: string;
+    vacancyRate: string;
   };
+  outing: {
+    pending: number;
+    approved: number;
+    activeOut: number;
+  };
+  attendance: {
+    inside: number;
+    outside: number;
+  };
+  violations: {
+    today: number;
+    unresolved: number;
+  };
+  blocksSummary: CampusBlock[];
 }
 
-export async function updateGatePassStatus(id: string, status: GatePassRequest["status"]): Promise<boolean> {
+export interface HostelRegistrationApplicant {
+  id: string;
+  applicationId?: string;
+  fullName: string;
+  registrationNumber: string;
+  dateOfBirth: string;
+  gender: string;
+  bloodGroup?: string;
+  profilePhoto?: string;
+  permanentAddress: string;
+  city: string;
+  district?: string;
+  state: string;
+  pincode: string;
+  mobileNumber: string;
+  alternateNumber?: string;
+  email: string;
+  parentName: string;
+  parentContact: string;
+  parentEmail?: string;
+  guardianName?: string;
+  guardianMobileNumber?: string;
+  guardianEmail?: string;
+  emergencyContact: string;
+  college?: string;
+  course: string;
+  department: string;
+  yearOfStudy: string;
+  semester: string;
+  section?: string;
+  admissionNumber?: string;
+  medicalConditions?: string;
+  allergies?: string;
+  emergencyMedicalInfo?: string;
+  specialRequirements?: string;
+  medications?: string;
+  hostelRequired?: boolean;
+  preferredBlock?: string;
+  roomTypePreference?: string;
+  specialAccommodationReq?: string;
+  preferredRoomId?: string;
+  status: "PENDING_ALLOCATION" | "PENDING" | "ALLOCATED" | "REJECTED";
+  allocatedBlockId?: string;
+  allocatedBlockName?: string;
+  allocatedFloorId?: string;
+  allocatedFloorName?: string;
+  allocatedRoomId?: string;
+  allocatedRoomNumber?: string;
+  allocatedBedId?: string;
+  allocatedBedNumber?: string;
+  allocatedAt?: string;
+  allocatedBy?: string;
+  rejectionReason?: string;
+  agreeTerms?: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export const HostelService = {
+  // ── 1. Dashboard ──
+  async getDashboard(): Promise<DashboardMetricsResponse> {
+    const res = await api.get<DashboardMetricsResponse>("/api/hostel/dashboard");
+    return res.data;
+  },
+
+  // ── 2. Blocks ──
+  async getBlocks(): Promise<CampusBlock[]> {
+    const res = await api.get<CampusBlock[]>("/api/hostel/blocks");
+    return res.data;
+  },
+
+  async createBlock(data: { blockName: string; type: string; totalCapacity: number }): Promise<CampusBlock> {
+    const res = await api.post<CampusBlock>("/api/hostel/blocks", data);
+    return res.data;
+  },
+
+  async deleteBlock(id: string): Promise<CampusBlock> {
+    const res = await api.delete<CampusBlock>(`/api/hostel/blocks/${id}`);
+    return res.data;
+  },
+
+  // ── 3. Mess ──
+  async getMealSlots(): Promise<MessMealTiming[]> {
+    const res = await api.get<MessMealTiming[]>("/api/hostel/mess/slots");
+    return res.data.map((m) => ({
+      ...m,
+      time: m.timeRange || m.time || `${m.startTime || ""} - ${m.endTime || ""}`,
+    }));
+  },
+
+  async getMenuSchedule(): Promise<MenuScheduleRow[]> {
+    const res = await api.get<MenuScheduleRow[]>("/api/hostel/mess/menu");
+    return res.data.map((row) => ({
+      ...row,
+      date: row.dateString || row.date || "",
+      day: row.dayName || row.day || "",
+      notes: row.notes || "",
+    }));
+  },
+
+  async updateMenuSchedule(
+    dateString: string,
+    data: Partial<MenuScheduleRow>
+  ): Promise<MenuScheduleRow> {
+    const res = await api.patch<MenuScheduleRow>(`/api/hostel/mess/menu/${encodeURIComponent(dateString)}`, data);
+    return res.data;
+  },
+
+  // ── 4. Outings ──
+  async getOutings(): Promise<CampusOutingRequest[]> {
+    const res = await api.get<CampusOutingRequest[]>("/api/hostel/outings");
+    return res.data;
+  },
+
+  async createOuting(data: {
+    studentName: string;
+    studentId: string;
+    destination?: string;
+    fromDate: string;
+    toDate: string;
+    reason: string;
+  }): Promise<CampusOutingRequest> {
+    const res = await api.post<CampusOutingRequest>("/api/hostel/outings", data);
+    return res.data;
+  },
+
+  async approveOuting(id: string, role: string, action: "APPROVED" | "REJECTED", comments?: string) {
+    const res = await api.patch(`/api/hostel/outings/${id}/approve`, { role, action, comments });
+    return res.data;
+  },
+
+  // ── 5. Attendance & Logs ──
+  async getAttendanceLogs(): Promise<AttendanceLogItem[]> {
+    try {
+      const res = await api.get<AttendanceLogItem[]>("/api/hostel/presence/logs");
+      return res.data.map((l: any) => ({
+        ...l,
+        name: l.studentName || l.name || "Student",
+        block: l.blockName || l.block || "",
+        floor: l.floorName || l.floor || "",
+        room: l.roomNumber || l.room || "",
+        type: l.movementType || l.eventType || l.type || "CHECK-IN",
+        device: l.deviceName || l.device || "Main Gate Biometric",
+        timestamp: new Date(l.timestamp).toLocaleString("en-IN"),
+      }));
+    } catch {
+      const res = await api.get<AttendanceLogItem[]>("/api/hostel/attendance/logs");
+      return res.data.map((l) => ({
+        ...l,
+        name: l.studentName || l.name || "Student",
+        block: l.blockName || l.block || "",
+        floor: l.floorName || l.floor || "",
+        room: l.roomNumber || l.room || "",
+        type: l.eventType || l.type || "CHECK-IN",
+        device: l.deviceName || l.device || "Turnstile",
+        timestamp: new Date(l.timestamp).toLocaleString("en-GB"),
+      }));
+    }
+  },
+
+  // ── Presence & Log History Suite ──
+  async getGateLogs(params?: any): Promise<{ data: any[]; total: number; page: number; pageSize: number; totalPages: number }> {
+    try {
+      const res = await api.get("/api/hostel/gate-logs", { params });
+      if (res.data && Array.isArray(res.data.data)) {
+        return res.data;
+      }
+      if (Array.isArray(res.data)) {
+        return { data: res.data, total: res.data.length, page: 1, pageSize: res.data.length, totalPages: 1 };
+      }
+      return { data: [], total: 0, page: 1, pageSize: 10, totalPages: 1 };
+    } catch (e) {
+      return { data: [], total: 0, page: 1, pageSize: 10, totalPages: 1 };
+    }
+  },
+
+  async getGateLogById(id: string): Promise<any> {
+    const res = await api.get(`/api/hostel/gate-logs/${id}`);
+    return res.data?.data || res.data;
+  },
+
+  async getStudentsStillInHostel(): Promise<any[]> {
+    try {
+      const res = await api.get("/api/hostel/presence/still-in-hostel");
+      return res.data;
+    } catch (e) {
+      return [];
+    }
+  },
+
+  async getOutingStudentsList(): Promise<any[]> {
+    try {
+      const res = await api.get("/api/hostel/presence/outing-students");
+      return res.data;
+    } catch (e) {
+      return [];
+    }
+  },
+
+  async getMovementViolations(params?: any): Promise<{ data: any[]; total: number; page: number; pageSize: number; totalPages: number }> {
+    try {
+      const res = await api.get("/api/hostel/violations", { params });
+      if (res.data && Array.isArray(res.data.data)) {
+        return res.data;
+      }
+      if (Array.isArray(res.data)) {
+        return { data: res.data, total: res.data.length, page: 1, pageSize: res.data.length, totalPages: 1 };
+      }
+      return { data: [], total: 0, page: 1, pageSize: 10, totalPages: 1 };
+    } catch (e) {
+      return { data: [], total: 0, page: 1, pageSize: 10, totalPages: 1 };
+    }
+  },
+
+  async getViolationById(id: string): Promise<any> {
+    const res = await api.get(`/api/hostel/violations/${id}`);
+    return res.data?.data || res.data;
+  },
+
+  async reviewViolation(id: string, remarks?: string, reviewedBy = "Chief Warden"): Promise<any> {
+    const res = await api.patch(`/api/hostel/violations/${id}/review`, { remarks, reviewedBy });
+    return res.data;
+  },
+
+  async resolveViolation(id: string, actionTaken: string, remarks?: string, resolvedBy = "Chief Warden"): Promise<any> {
+    const res = await api.patch(`/api/hostel/violations/${id}/resolve`, { actionTaken, remarks, resolvedBy });
+    return res.data;
+  },
+
+  async getPresenceAnalytics(): Promise<any> {
+    try {
+      const res = await api.get("/api/hostel/presence/analytics");
+      return res.data;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  async recordMovement(data: any): Promise<any> {
+    const res = await api.post("/api/hostel/presence/movement", data);
+    return res.data;
+  },
+
+  // ── 6. Users (Strictly Student Users) ──
+  async getUsers(): Promise<SystemUserItem[]> {
+    const res = await api.get<SystemUserItem[]>("/api/hostel/users");
+    return res.data;
+  },
+
+  async createStudentUser(data: {
+    name: string;
+    rollNumber: string;
+    department: string;
+    year: number | string;
+    semester: number | string;
+    section?: string;
+    email?: string;
+    contact: string;
+    parentContact?: string;
+    blockName?: string;
+    floorName?: string;
+    roomNumber?: string;
+    bedNumber?: string;
+    password?: string;
+  }): Promise<{ student: any; credentials: { name: string; username: string; rollNumber: string; email: string; password: string; role: string; loginUrl: string } }> {
+    const res = await api.post("/api/hostel/users", data);
+    return res.data;
+  },
+
+  async resetStudentPassword(id: string, password?: string): Promise<any> {
+    const res = await api.post(`/api/hostel/users/${id}/reset-password`, { password });
+    return res.data;
+  },
+
+  async deallocateStudentRoom(id: string): Promise<any> {
+    const res = await api.post(`/api/hostel/users/${id}/deallocate-room`);
+    return res.data;
+  },
+
+  // ── 7. Guest Billing ──
+  async getGuestBills(): Promise<any[]> {
+    const res = await api.get<any[]>("/api/hostel/bills");
+    return res.data;
+  },
+
+  async createGuestBill(data: {
+    guestName: string;
+    contactNumber: string;
+    purpose: string;
+    fromDate: string;
+    toDate: string;
+    roomCharges: number;
+    messCharges: number;
+    extraCharges?: number;
+  }) {
+    const res = await api.post("/api/hostel/bills", data);
+    return res.data;
+  },
+
+  // ── 8. Leaves & Suspensions ──
+  async getLeaves(): Promise<any[]> {
+    const res = await api.get<any[]>("/api/hostel/leaves");
+    return res.data;
+  },
+
+  async createLeave(data: {
+    studentName: string;
+    studentId: string;
+    leaveType: string;
+    startDate: string;
+    endDate: string;
+    reason?: string;
+  }) {
+    const res = await api.post("/api/hostel/leaves", data);
+    return res.data;
+  },
+
+  async getSuspensions(): Promise<any[]> {
+    const res = await api.get<any[]>("/api/hostel/suspensions");
+    return res.data;
+  },
+
+  // ── 9. Devices ──
+  async getDevices(): Promise<any[]> {
+    const res = await api.get<any[]>("/api/hostel/devices");
+    return res.data;
+  },
+
+  // ── 10. Violations ──
+  async getViolations(): Promise<any[]> {
+    const res = await api.get<any[]>("/api/hostel/violations");
+    return res.data;
+  },
+
+  // ── 11. Audit Logs ──
+  async getAuditLogs(): Promise<any[]> {
+    const res = await api.get<any[]>("/api/hostel/audit-logs");
+    return res.data;
+  },
+
+  // ── 12. Student Online Registration & Room Allocation ──
+  async getRegistrationMeta(): Promise<any> {
+    try {
+      const res = await api.get("/api/hostel/registration-meta");
+      if (res.data && res.data.success) return res.data;
+    } catch (e) {
+      console.warn("Using local registration meta fallback");
+    }
+    return {
+      courses: [
+        { id: "btech", name: "B.Tech (Bachelor of Technology)", max_year: 4 },
+        { id: "mtech", name: "M.Tech (Master of Technology)", max_year: 2 },
+        { id: "mca", name: "MCA (Master of Computer Applications)", max_year: 2 },
+        { id: "mba", name: "MBA (Master of Business Administration)", max_year: 2 },
+        { id: "bpharm", name: "B.Pharmacy", max_year: 4 },
+      ],
+      departments: [
+        { id: "cse", name: "Computer Science & Engineering (CSE)" },
+        { id: "ai_ds", name: "Artificial Intelligence & Data Science (AI & DS)" },
+        { id: "ece", name: "Electronics & Communication Engineering (ECE)" },
+        { id: "eee", name: "Electrical & Electronics Engineering (EEE)" },
+        { id: "mech", name: "Mechanical Engineering (ME)" },
+        { id: "civil", name: "Civil Engineering (CE)" },
+        { id: "it", name: "Information Technology (IT)" },
+        { id: "chem", name: "Chemical Engineering" },
+      ],
+      roomTypes: [
+        { id: "ac_single", name: "AC Single Deluxe Room", price: "₹1,10,000 / Sem", description: "Private room with AC, personal study desk, wardrobe, attached bath.", features: "Air Conditioned, Attached Bath, High Speed Wi-Fi, Daily Housekeeping" },
+        { id: "ac_double", name: "AC Double Sharing", price: "₹85,000 / Sem", description: "Twin sharing with AC, two study workstations, built-in wardrobes.", features: "Air Conditioned, High Speed Wi-Fi, Balcony, Housekeeping" },
+        { id: "non_ac_double", name: "Non-AC Double Sharing", price: "₹65,000 / Sem", description: "Spacious twin sharing room with ample natural ventilation and wardrobes.", features: "Ceiling Fan, High Speed Wi-Fi, Shared Bath, Hot Water" },
+        { id: "ac_triple", name: "AC Triple Sharing", price: "₹70,000 / Sem", description: "Three sharing room with centralized AC, individual study tables.", features: "Air Conditioned, Study Units, Storage Lockers" },
+        { id: "non_ac_four", name: "Non-AC 4 Sharing", price: "₹50,000 / Sem", description: "Economy 4-student sharing room with spacious layout and lockers.", features: "Spacious Layout, Personal Lockers, Study Tables" },
+      ],
+    };
+  },
+
+  async submitRegistration(data: any): Promise<{ success: boolean; data?: HostelRegistrationApplicant; error?: string }> {
+    try {
+      const res = await api.post("/api/hostel/registrations", data);
+      if (res.data && (res.data.success || res.data.id)) {
+        // Also persist in localStorage queue for instant sync
+        saveLocalRegistration(res.data.data || res.data);
+        return { success: true, data: res.data.data || res.data };
+      }
+      if (res.data?.error) return { success: false, error: res.data.error };
+    } catch (e: any) {
+      console.warn("Backend API unavailable, saving locally:", e);
+    }
+    // Offline / direct storage fallback
+    const mockApp: HostelRegistrationApplicant = {
+      ...data,
+      id: `REG-${Date.now()}`,
+      status: "PENDING",
+      createdAt: new Date().toISOString(),
+    };
+    saveLocalRegistration(mockApp);
+    return { success: true, data: mockApp };
+  },
+
+  async getRegistrations(status?: string): Promise<HostelRegistrationApplicant[]> {
+    let list: HostelRegistrationApplicant[] = [];
+    try {
+      const endpoint = status ? `/api/hostel/registrations?status=${status}` : "/api/hostel/registrations";
+      const res = await api.get<HostelRegistrationApplicant[]>(endpoint);
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        list = res.data;
+      }
+    } catch (e) {
+      console.warn("Using local registrations dataset");
+    }
+
+    // Merge with localStorage items
+    const local = getLocalRegistrations();
+    const map = new Map<string, HostelRegistrationApplicant>();
+    [...local, ...list, ...INITIAL_REGISTRATIONS].forEach((item) => {
+      map.set(item.id || item.registrationNumber, item);
+    });
+
+    const result = Array.from(map.values());
+    if (status) return result.filter((r) => r.status === status);
+    return result;
+  },
+
+  async allocateRegistrationRoom(
+    registrationId: string,
+    allocation: { blockId: string; floorId: string; roomId: string; bedId: string; allocatedBy?: string; blockName?: string; floorName?: string; roomNumber?: string; bedNumber?: string }
+  ) {
+    try {
+      const res = await api.post(`/api/hostel/registrations/${registrationId}/allocate`, allocation);
+      if (res.data && res.data.success) {
+        updateLocalRegistrationStatus(registrationId, "ALLOCATED", allocation);
+        return res.data;
+      }
+    } catch (e) {
+      console.warn("Allocating locally fallback:", e);
+    }
+    // Update local state
+    updateLocalRegistrationStatus(registrationId, "ALLOCATED", allocation);
+    return { success: true };
+  },
+
+  async rejectRegistration(registrationId: string, reason?: string) {
+    try {
+      const res = await api.patch(`/api/hostel/registrations/${registrationId}/status`, { reason });
+      if (res.data && res.data.success) {
+        updateLocalRegistrationStatus(registrationId, "REJECTED", { rejectionReason: reason });
+        return res.data;
+      }
+    } catch (e) {
+      console.warn("Rejecting locally fallback:", e);
+    }
+    updateLocalRegistrationStatus(registrationId, "REJECTED", { rejectionReason: reason });
+    return { success: true };
+  },
+};
+
+const LOCAL_STORAGE_REG_KEY = "edusuite_hostel_registrations_v2";
+
+export const INITIAL_REGISTRATIONS: HostelRegistrationApplicant[] = [
+  {
+    id: "REG-2026-001",
+    fullName: "Vadamodula Pravallika",
+    registrationNumber: "24331A05P9",
+    dateOfBirth: "2006-05-14",
+    gender: "Female",
+    bloodGroup: "O+",
+    permanentAddress: "D.No 4-12, Main Road, Kothavalasa",
+    city: "Vizianagaram",
+    state: "Andhra Pradesh",
+    pincode: "535183",
+    mobileNumber: "9876543219",
+    alternateNumber: "9876543210",
+    email: "pravallika.v@gmail.com",
+    parentName: "V. Satyanarayana",
+    parentContact: "9440123456",
+    parentEmail: "v.satya@gmail.com",
+    emergencyContact: "9440123456",
+    course: "B.Tech (Bachelor of Technology)",
+    department: "Computer Science & Engineering (CSE)",
+    yearOfStudy: "1st Year",
+    semester: "1st Semester",
+    roomTypePreference: "AC Double Sharing",
+    preferredBlock: "Girls Hostel",
+    status: "PENDING",
+    agreeTerms: true,
+    createdAt: "2026-08-26T10:30:00Z",
+  },
+  {
+    id: "REG-2026-002",
+    fullName: "Tarunya Jogi",
+    registrationNumber: "24331A1253",
+    dateOfBirth: "2006-03-22",
+    gender: "Female",
+    bloodGroup: "B+",
+    permanentAddress: "Plot 88, Sector 4, MVP Colony",
+    city: "Visakhapatnam",
+    state: "Andhra Pradesh",
+    pincode: "530017",
+    mobileNumber: "8500789579",
+    email: "tarunyajogi@gmail.com",
+    parentName: "J. Appa Rao",
+    parentContact: "9848123987",
+    parentEmail: "j.apparao@gmail.com",
+    emergencyContact: "9848123987",
+    course: "B.Tech (Bachelor of Technology)",
+    department: "Information Technology (IT)",
+    yearOfStudy: "1st Year",
+    semester: "1st Semester",
+    roomTypePreference: "AC Triple Sharing",
+    preferredBlock: "Girls Hostel",
+    status: "PENDING",
+    agreeTerms: true,
+    createdAt: "2026-08-26T11:15:00Z",
+  },
+  {
+    id: "REG-2026-003",
+    fullName: "Kakarla Sai Teja",
+    registrationNumber: "23331A0482",
+    dateOfBirth: "2005-09-18",
+    gender: "Male",
+    bloodGroup: "A+",
+    permanentAddress: "Flat 302, Sri Krishna Apts, Gajuwaka",
+    city: "Visakhapatnam",
+    state: "Andhra Pradesh",
+    pincode: "530026",
+    mobileNumber: "7675922209",
+    email: "saiteja.k@gmail.com",
+    parentName: "K. Venkateswara Rao",
+    parentContact: "9490123789",
+    parentEmail: "k.venkat@gmail.com",
+    emergencyContact: "9490123789",
+    course: "B.Tech (Bachelor of Technology)",
+    department: "Electronics & Communication Engineering (ECE)",
+    yearOfStudy: "2nd Year",
+    semester: "3rd Semester",
+    roomTypePreference: "AC Single Deluxe Room",
+    preferredBlock: "Boys Hostel",
+    status: "PENDING",
+    agreeTerms: true,
+    createdAt: "2026-08-26T12:05:00Z",
+  },
+];
+
+function getLocalRegistrations(): HostelRegistrationApplicant[] {
+  if (typeof window === "undefined") return [];
   try {
-    await api.put(`/api/hostel/passes/${id}`, { status });
-  } catch {}
-  return true;
+    const raw = localStorage.getItem(LOCAL_STORAGE_REG_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.error("Local storage error:", e);
+  }
+  return [];
+}
+
+function saveLocalRegistration(reg: HostelRegistrationApplicant) {
+  if (typeof window === "undefined") return;
+  try {
+    const existing = getLocalRegistrations();
+    const updated = [reg, ...existing.filter((item) => item.registrationNumber !== reg.registrationNumber && item.id !== reg.id)];
+    localStorage.setItem(LOCAL_STORAGE_REG_KEY, JSON.stringify(updated));
+  } catch (e) {
+    console.error("Save local storage error:", e);
+  }
+}
+
+function updateLocalRegistrationStatus(
+  id: string,
+  status: "ALLOCATED" | "REJECTED",
+  extra?: any
+) {
+  if (typeof window === "undefined") return;
+  try {
+    const all = [...getLocalRegistrations(), ...INITIAL_REGISTRATIONS];
+    const item = all.find((r) => r.id === id || r.registrationNumber === id);
+    if (item) {
+      item.status = status;
+      if (status === "ALLOCATED" && extra) {
+        item.allocatedBlockId = extra.blockId;
+        item.allocatedBlockName = extra.blockName || "Hostel Block";
+        item.allocatedFloorId = extra.floorId;
+        item.allocatedFloorName = extra.floorName || "Floor 1";
+        item.allocatedRoomId = extra.roomId;
+        item.allocatedRoomNumber = extra.roomNumber || "101";
+        item.allocatedBedId = extra.bedId;
+        item.allocatedBedNumber = extra.bedNumber || "Bed-1";
+        item.allocatedAt = new Date().toISOString();
+        item.allocatedBy = extra.allocatedBy || "Chief Warden";
+      } else if (status === "REJECTED" && extra) {
+        item.rejectionReason = extra.rejectionReason;
+      }
+      saveLocalRegistration(item);
+    }
+  } catch (e) {
+    console.error("Update local storage error:", e);
+  }
 }

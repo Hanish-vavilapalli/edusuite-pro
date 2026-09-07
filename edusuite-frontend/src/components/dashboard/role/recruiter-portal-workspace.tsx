@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useLocation, useNavigate } from "@tanstack/react-router";
 import {
   Briefcase,
   Users,
@@ -475,8 +476,6 @@ export const SAMPLE_2_CODING_CHALLENGES: CodingChallenge[] = [
     ]
   }
 ];
-
-import { useLocation, useNavigate } from "@tanstack/react-router";
 
 export function RecruiterPortalWorkspace({ initialModule = "dashboard" }: { initialModule?: RecruiterPageModule }) {
   const location = useLocation();

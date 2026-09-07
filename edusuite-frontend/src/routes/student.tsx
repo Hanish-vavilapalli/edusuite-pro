@@ -12,28 +12,24 @@ export const Route = createFileRoute("/student")({
 function StudentLayout() {
   const { role } = useRole();
   const normalized = normalizeRole(role);
+  const hasStudentToken = typeof window !== "undefined" && Boolean(localStorage.getItem("student_token") || localStorage.getItem("token"));
 
-  if (normalized !== "student" && normalized !== "super_admin" && normalized !== "admin") {
+  if (!hasStudentToken && normalized !== "student" && normalized !== "super_admin" && normalized !== "admin") {
     return (
-      <div className="flex h-screen items-center justify-center p-4 bg-background">
-        <div className="text-center max-w-md border border-destructive/20 bg-destructive/5 rounded-2xl p-6">
-          <ShieldAlert className="size-10 text-destructive mx-auto mb-3" />
-          <h3 className="text-lg font-bold">Access Denied</h3>
-          <p className="text-xs text-muted-foreground mt-1 mb-4">
-            You need Student privileges to view this section. Please switch your role in the topbar
-            or log in.
+      <div className="flex h-screen items-center justify-center p-4 bg-slate-950 text-white">
+        <div className="text-center max-w-md border border-red-500/20 bg-slate-900 rounded-2xl p-6 shadow-2xl">
+          <ShieldAlert className="size-10 text-red-400 mx-auto mb-3" />
+          <h3 className="text-lg font-bold">Student Portal Authentication Required</h3>
+          <p className="text-xs text-slate-400 mt-1 mb-4">
+            Please log in with your Student ID and credentials to access your personalized hostel dashboard.
           </p>
-          <Button asChild className="rounded-xl">
-            <Link to="/login">Go to Login</Link>
+          <Button asChild className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold">
+            <Link to="/student/login">Go to Student Login</Link>
           </Button>
         </div>
       </div>
     );
   }
 
-  return (
-    <DashboardLayout>
-      <Outlet />
-    </DashboardLayout>
-  );
+  return <Outlet />;
 }

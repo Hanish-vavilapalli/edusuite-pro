@@ -1,16 +1,22 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useLocation } from "@tanstack/react-router";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
-import { HostelModuleView } from "@/modules/hostel";
 
 export const Route = createFileRoute("/hostel")({
   head: () => ({ meta: [{ title: "Hostel Management — EduSuite Pro" }] }),
-  component: HostelPage,
+  component: HostelLayout,
 });
 
-function HostelPage() {
+function HostelLayout() {
+  const location = useLocation();
+  const isRegistration = location.pathname.includes("/registration");
+
+  if (isRegistration) {
+    return <Outlet />;
+  }
+
   return (
-    <DashboardLayout>
-      <HostelModuleView />
+    <DashboardLayout hideTopbar={true}>
+      <Outlet />
     </DashboardLayout>
   );
 }

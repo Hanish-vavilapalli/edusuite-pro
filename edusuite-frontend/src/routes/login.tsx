@@ -43,6 +43,47 @@ function LoginPage() {
     const loadingToast = toast.loading("Authenticating credentials...");
 
     try {
+      if (step1CoreRole === "student") {
+        const studentRes = await fetch("http://localhost:5000/api/student/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier: email, password: password }),
+        });
+        const studentData = await studentRes.json();
+
+        if (studentRes.ok && studentData.token) {
+          localStorage.setItem("token", studentData.token);
+          localStorage.setItem("cms_token", studentData.token);
+          localStorage.setItem("student_token", studentData.token);
+
+          setRole("student");
+          setFlags(["student_portal", "hostel_student"]);
+          if (studentData.student?.department) {
+            setDepartment(studentData.student.department as any);
+          }
+
+          toast.dismiss(loadingToast);
+          toast.success(`Welcome to Student Portal, ${studentData.student?.name || "Student"}!`);
+
+          // Open Student Portal in new tab per specification
+          try {
+            const newTab = window.open("/student/dashboard", "_blank");
+            if (!newTab || newTab.closed || typeof newTab.closed === "undefined") {
+              navigate({ to: "/student/dashboard" });
+            } else {
+              navigate({ to: "/student/dashboard" });
+            }
+          } catch {
+            navigate({ to: "/student/dashboard" });
+          }
+          return;
+        } else {
+          toast.dismiss(loadingToast);
+          toast.error(studentData.error || "Student authentication failed.");
+          return;
+        }
+      }
+
       const response = await api.post("/api/auth/login", {
         email: email.trim(),
         password: password,

@@ -152,7 +152,7 @@ export const SYSTEM_TEST_CREDENTIALS: UserCredential[] = [
   {
     canonicalRole: "student",
     roleName: "Student",
-    email: "student@cms.com",
+    email: "student@vignan_student.edu.in",
     defaultPassword: "password123",
     primaryScope: "Learning & Academic Self-Service",
     personaName: "K. Sai Teja (22CS101)",
@@ -381,7 +381,7 @@ export function getDefaultCredentialsForSelection(
     } else {
       email = "superadmin@cms.com";
     }
-  } else if (coreRole === "student") email = "student@cms.com";
+  } else if (coreRole === "student") email = "student@vignan_student.edu.in";
   else if (coreRole === "parent") email = "parent@cms.com";
   else if (coreRole === "external-user") {
     if (designation === "alumni") email = "alumni@cms.com";

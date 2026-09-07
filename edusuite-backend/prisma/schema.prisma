@@ -1,5 +1,5 @@
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -992,4 +992,447 @@ model LibrarySetting {
   instituteName               String   @default("EduSuite Pro Central Institute")
   accessionPrefix             String   @default("GMRIT")
   updatedAt                   DateTime @updatedAt
+}
+<<<<<<< HEAD
+
+model SubjectAllocation {
+  id           String   @id @default(uuid())
+  facultyId    String
+  faculty      Faculty  @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  courseId     String
+  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  department   String
+  semester     String
+  section      String
+  academicYear String
+  weeklyHours  Int      @default(3)
+  status       String   @default("Active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([courseId, semester, section, academicYear])
+  @@index([department])
+  @@index([facultyId])
+  @@index([courseId])
+  @@index([academicYear])
+}
+
+// ══════════════════════════════════════════════════════
+// ── HOSTEL ERP RELATIONAL DOMAIN MODELS ──
+// ══════════════════════════════════════════════════════
+
+model HostelBlock {
+  id            String         @id @default(uuid())
+  blockCode     String         @unique
+  blockName     String
+  type          String         // "Boys Hostel" | "Girls Hostel"
+  letter        String         // "B" | "G"
+  totalCapacity Int            @default(0)
+  status        String         @default("Active") // "Active" | "Maintenance"
+  floors        HostelFloor[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model HostelFloor {
+  id          String         @id @default(uuid())
+  blockId     String
+  block       HostelBlock    @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  floorNumber Int
+  floorName   String
+  status      String         @default("Active")
+  rooms       HostelRoom[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([blockId, floorNumber])
+}
+
+model HostelRoom {
+  id                String                 @id @default(uuid())
+  floorId           String
+  floor             HostelFloor            @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  roomNumber        String
+  roomType          String                 @default("Triple Sharing") // "Single" | "Double" | "Triple Sharing" | "Four Sharing"
+  capacity          Int                    @default(3)
+  occupiedCount     Int                    @default(0)
+  status            String                 @default("AVAILABLE") // "AVAILABLE" | "OCCUPIED" | "MAINTENANCE"
+  maintenanceReason String?
+  beds              HostelBed[]
+  guestStays        HostelGuestStay[]
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  @@unique([floorId, roomNumber])
+}
+
+model HostelBed {
+  id          String                 @id @default(uuid())
+  roomId      String
+  room        HostelRoom             @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  bedNumber   String
+  status      String                 @default("AVAILABLE") // "AVAILABLE" | "OCCUPIED" | "RESERVED"
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  @@unique([roomId, bedNumber])
+}
+
+model HostelRoomAllocation {
+  id             String       @id @default(uuid())
+  studentId      String
+  registrationId String?
+  studentName    String
+  rollNumber     String
+  blockId        String
+  blockName      String?      @default("Boys Hostel")
+  floorId        String
+  floorName      String?      @default("Floor 1")
+  roomId         String
+  roomNumber     String?      @default("103")
+  bedId          String
+  bedNumber      String?      @default("Bed-3")
+  allocationDate DateTime     @default(now())
+  vacatedDate    DateTime?
+  status         String       @default("ACTIVE") // "ACTIVE" | "ALLOCATED" | "VACATED" | "TRANSFERRED" | "CANCELLED"
+  allocatedBy    String       @default("Chief Warden")
+  remarks        String?      @default("Room and bed assigned upon verification.")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model HostelBiometricDevice {
+  id             String                 @id @default(uuid())
+  deviceName     String
+  deviceCode     String                 @unique
+  location       String
+  ipAddress      String
+  deviceType     String                 // "Biometric Turnstile" | "Fingerprint" | "RFID Gate" | "Face Recognition"
+  status         String                 @default("ONLINE") // "ONLINE" | "OFFLINE" | "MAINTENANCE"
+  lastHeartbeat  DateTime               @default(now())
+  events         HostelAttendanceEvent[]
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+}
+
+model HostelMovementLog {
+  id                  String   @id @default(uuid())
+  studentId           String
+  registrationId      String?
+  studentName         String
+  allocationId        String?
+  outingId            String?
+  blockName           String
+  floorName           String?  @default("Floor 1")
+  roomNumber          String
+  bedNumber           String?
+  movementType        String   // "CHECK-IN" | "CHECK-OUT" | "UNAUTHORIZED_EXIT" | "EMERGENCY_EXIT"
+  timestamp           DateTime @default(now())
+  deviceId            String?
+  deviceName          String   @default("Main Gate Biometric Turnstile")
+  method              String   @default("Fingerprint") // "Fingerprint" | "RFID" | "Face" | "Manual" | "QR"
+  authorizationStatus String   @default("AUTHORIZED") // "AUTHORIZED" | "UNAUTHORIZED"
+  status              String   @default("NORMAL") // "NORMAL" | "LATE" | "VIOLATION" | "COMPLETED"
+  remarks             String?
+  createdAt           DateTime @default(now())
+}
+
+model HostelOutingRecord {
+  id                 String    @id @default(uuid())
+  studentId          String
+  registrationId     String?
+  studentName        String
+  blockName          String
+  floorName          String?   @default("Floor 1")
+  roomNumber         String
+  bedNumber          String?
+  outingRequestId    String?
+  outingDate         String    @default("26-08-2026")
+  reason             String
+  approvedBy         String    @default("Warden")
+  expectedOutTime    String    @default("05:00 PM")
+  actualOutTime      String?
+  expectedReturnTime String    @default("08:00 PM")
+  actualReturnTime   String?
+  graceMinutes       Int       @default(60)
+  allowedUntilTime   String?   @default("09:00 PM")
+  durationText       String?
+  status             String    @default("OUTSIDE") // "OUTSIDE" | "RETURNED" | "OVERDUE"
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model HostelMovementViolation {
+  id                 String    @id @default(uuid())
+  studentId          String
+  registrationId     String?
+  studentName        String
+  blockName          String
+  floorName          String?   @default("Floor 1")
+  roomNumber         String
+  bedNumber          String?
+  outingId           String?
+  gateLogId          String?
+  outingDate         String    @default("26-08-2026")
+  reason             String?
+  expectedReturnTime String?   @default("08:00 PM")
+  graceMinutes       Int       @default(60)
+  allowedUntilTime   String?   @default("09:00 PM")
+  actualReturnTime   String?
+  lateMinutes        Int       @default(0)
+  lateDurationText   String?
+  violationType      String    @default("Late Return") // "Late Return" | "Missing Return / Overdue" | "Unauthorized Exit" | "Curfew Breach"
+  severity           String    @default("HIGH") // "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
+  status             String    @default("OPEN") // "OPEN" | "REVIEWED" | "RESOLVED"
+  actionTaken        String?
+  remarks            String?
+  resolvedBy         String?
+  resolvedAt         DateTime?
+  createdAt          DateTime  @default(now())
+}
+
+model HostelAttendanceEvent {
+  id                 String                 @id @default(uuid())
+  studentName        String
+  userId             String
+  blockName          String
+  floorName          String
+  roomNumber         String
+  deviceId           String?
+  device             HostelBiometricDevice? @relation(fields: [deviceId], references: [id])
+  deviceName         String                 @default("Girls Hostel Biometric")
+  eventType          String                 @default("CHECK-IN") // "CHECK-IN" | "CHECK-OUT"
+  method             String                 @default("Fingerprint") // "Fingerprint" | "RFID" | "Face" | "Manual"
+  timestamp          DateTime               @default(now())
+  verificationStatus String                 @default("VERIFIED")
+  violations         HostelViolation[]
+  createdAt          DateTime               @default(now())
+}
+
+model HostelViolation {
+  id                String                 @id @default(uuid())
+  studentName       String
+  userId            String
+  outingId          String?
+  attendanceEventId String?
+  attendanceEvent   HostelAttendanceEvent? @relation(fields: [attendanceEventId], references: [id])
+  violationType     String                 // "LATE_RETURN" | "UNAUTHORIZED_EXIT" | "UNAUTHORIZED_ENTRY" | "OVERSTAY" | "CURFEW_BREACH"
+  description       String
+  severity          String                 @default("MEDIUM") // "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
+  status            String                 @default("OPEN") // "OPEN" | "REVIEWED" | "RESOLVED" | "PENALIZED"
+  remarks           String?
+  detectedAt        DateTime               @default(now())
+  resolvedAt        DateTime?
+  resolvedBy        String?
+}
+
+model HostelMealSlot {
+  id        String                 @id @default(uuid())
+  name      String                 @unique // "Breakfast" | "Lunch" | "Snacks" | "Dinner"
+  timeRange String                 // "07:30 - 09:15"
+  startTime String                 // "07:30"
+  endTime   String                 // "09:15"
+  status    String                 @default("Active")
+  menus     HostelMenuSchedule[]
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+}
+
+model HostelMenuSchedule {
+  id              String          @id @default(uuid())
+  dateString      String          // "26 Aug 2026"
+  dayName         String          // "Wednesday"
+  mealSlotId      String?
+  mealSlot        HostelMealSlot? @relation(fields: [mealSlotId], references: [id])
+  breakfastNonVeg Boolean         @default(false)
+  lunchNonVeg     Boolean         @default(false)
+  snacksNonVeg    Boolean         @default(false)
+  dinnerNonVeg    Boolean         @default(false)
+  notes           String?         @default("")
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@unique([dateString])
+}
+
+model HostelOutingRequest {
+  id             String                 @id @default(uuid())
+  studentName    String
+  studentId      String
+  destination    String?
+  fromDate       String
+  toDate         String
+  reason         String
+  status         String                 @default("PENDING") // "PENDING" | "APPROVED" | "REJECTED" | "OUT" | "RETURNED"
+  parentApproval String                 @default("PENDING") // "PENDING" | "APPROVED" | "REJECTED"
+  wardenApproval String                 @default("PENDING") // "PENDING" | "APPROVED" | "REJECTED"
+  requestedAt    DateTime               @default(now())
+  approvals      HostelOutingApproval[]
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+}
+
+model HostelOutingApproval {
+  id              String              @id @default(uuid())
+  outingRequestId String
+  outingRequest   HostelOutingRequest @relation(fields: [outingRequestId], references: [id], onDelete: Cascade)
+  approverId      String
+  approverRole    String              // "PARENT" | "WARDEN" | "SECURITY"
+  action          String              // "APPROVED" | "REJECTED"
+  comments        String?
+  actionAt        DateTime            @default(now())
+}
+
+model HostelLeaveRequest {
+  id             String   @id @default(uuid())
+  studentName    String
+  studentId      String
+  leaveType      String   // "Home Visit" | "Medical" | "Academic / Internship" | "Emergency"
+  startDate      String
+  endDate        String
+  state          String   @default("Active")
+  status         String   @default("PENDING") // "PENDING" | "APPROVED" | "REJECTED"
+  parentApproval String   @default("PENDING")
+  createdBy      String   @default("Student")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model HostelSuspension {
+  id          String   @id @default(uuid())
+  studentName String
+  studentId   String
+  reason      String
+  fromDate    String
+  toDate      String
+  status      String   @default("ACTIVE") // "ACTIVE" | "REVOKED" | "EXPIRED"
+  approvedBy  String   @default("Chief Warden")
+  remarks     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model HostelGuest {
+  id        String            @id @default(uuid())
+  guestName String
+  phone     String
+  email     String?
+  relation  String            // "Father" | "Mother" | "Guardian" | "Official Guest"
+  idProof   String?
+  stays     HostelGuestStay[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+model HostelGuestStay {
+  id        String            @id @default(uuid())
+  guestId   String
+  guest     HostelGuest       @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  roomId    String?
+  room      HostelRoom?       @relation(fields: [roomId], references: [id])
+  checkIn   String
+  checkOut  String
+  status    String            @default("ACTIVE") // "ACTIVE" | "COMPLETED" | "CANCELLED"
+  bills     HostelGuestBill[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+model HostelGuestBill {
+  id            String          @id @default(uuid())
+  guestStayId   String
+  guestStay     HostelGuestStay @relation(fields: [guestStayId], references: [id], onDelete: Cascade)
+  guestName     String
+  contactNumber String
+  purpose       String
+  fromDate      String
+  toDate        String
+  roomCharges   Float           @default(0)
+  messCharges   Float           @default(0)
+  extraCharges  Float           @default(0)
+  totalAmount   Float           @default(0)
+  paymentStatus String          @default("PAID") // "PAID" | "PENDING" | "WAIVED"
+  invoiceNumber String          @unique
+  generatedAt   DateTime        @default(now())
+}
+
+model HostelAuditLog {
+  id         String   @id @default(uuid())
+  userId     String
+  userName   String
+  action     String   // "CREATE_BLOCK" | "ALLOCATE_ROOM" | "APPROVE_OUTING" | "GENERATE_BILL" | "VIOLATION_TRIGGER"
+  module     String   // "BLOCKS" | "ALLOCATION" | "OUTING" | "BILLING" | "ATTENDANCE" | "MESS"
+  entityType String
+  entityId   String
+  details    String?
+  ipAddress  String?
+  timestamp  DateTime @default(now())
+}
+
+model HostelRegistration {
+  id                      String    @id @default(uuid())
+  applicationId           String?   @unique // e.g. STU2026CSE001
+  fullName                String
+  registrationNumber      String    @unique
+  dateOfBirth             String
+  gender                  String
+  bloodGroup              String?
+  profilePhoto            String?
+  permanentAddress        String
+  city                    String
+  district                String?
+  state                   String
+  pincode                 String
+  
+  // Contact Information
+  mobileNumber            String
+  alternateNumber         String?
+  email                   String
+  parentName              String
+  parentContact           String
+  parentEmail             String?
+  guardianName            String?
+  guardianMobileNumber    String?
+  guardianEmail           String?
+  emergencyContact        String
+  
+  // Academic Information
+  college                 String?   @default("Campus Institute of Technology")
+  course                  String
+  department              String
+  yearOfStudy             String
+  semester                String
+  section                 String?   @default("A")
+  admissionNumber         String?
+  
+  // Medical Information
+  medicalConditions       String?
+  allergies               String?
+  emergencyMedicalInfo    String?
+  specialRequirements     String?
+  medications             String?
+  
+  // Hostel Preferences
+  hostelRequired          Boolean   @default(true)
+  preferredBlock          String?
+  roomTypePreference      String?
+  specialAccommodationReq String?
+  preferredRoomId         String?
+  
+  // Status & Allocation Details
+  status                  String    @default("PENDING_ALLOCATION") // "PENDING_ALLOCATION" | "ALLOCATED" | "REJECTED"
+  allocatedBlockId        String?
+  allocatedBlockName      String?
+  allocatedFloorId        String?
+  allocatedFloorName      String?
+  allocatedRoomId         String?
+  allocatedRoomNumber     String?
+  allocatedBedId          String?
+  allocatedBedNumber      String?
+  allocatedAt             DateTime?
+  allocatedBy             String?
+  rejectionReason         String?
+  agreeTerms              Boolean   @default(true)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 }

@@ -1,5 +1,5 @@
 services:
-  postgres:
+  db:
     image: postgres:16-alpine
     container_name: edusuite_postgres
     restart: always
@@ -27,7 +27,7 @@ services:
     ports:
       - '5051:80'
     depends_on:
-      - postgres
+      - db
 
 volumes:
   postgres_data:

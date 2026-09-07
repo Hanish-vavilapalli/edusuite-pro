@@ -1,6 +1,7 @@
 import { prisma } from "./db";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
+import { seedHostelDatabase } from "./modules/hostel/hostel.seeder";
 
 const FIRST_NAMES = [
   "Aarav", "Vihaan", "Aditya", "Sai", "Rahul", "Ananya", "Diya", "Sanya", "Neha", "Arjun",
@@ -352,17 +353,18 @@ export async function seedDatabase() {
     }
   }
 
-  console.log(`Writing ${parentsToInsert.length} parent records to PostgreSQL...`);
+  console.log(`Writing ${parentsToInsert.length} parent records to database...`);
   await prisma.parent.createMany({
     data: parentsToInsert,
-    skipDuplicates: true,
   });
 
-  console.log(`Writing ${studentsToInsert.length} student records to PostgreSQL...`);
+  console.log(`Writing ${studentsToInsert.length} student records to database...`);
   await prisma.student.createMany({
     data: studentsToInsert,
-    skipDuplicates: true,
   });
+
+  // Seed Hostel ERP domain records
+  await seedHostelDatabase();
 
   console.log("Database seed completed successfully.");
 }

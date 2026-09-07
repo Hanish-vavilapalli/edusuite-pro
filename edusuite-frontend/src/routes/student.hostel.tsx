@@ -1,21 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { StudentHostelModule } from "@/components/student-hostel";
+import { PersonalizedStudentPortal } from "@/modules/student-portal/PersonalizedStudentPortal";
 
 export const Route = createFileRoute("/student/hostel")({
   head: () => ({
     meta: [
-      { title: "Hostel Management — EduSuite Pro" },
+      { title: "Hostel Management — Student Portal" },
       {
         name: "description",
-        content: "Manage hostel accommodation, room details, mess services, gate passes, complaints and hostel payments.",
+        content: "Manage hostel accommodation, room details, mess services, gate passes, complaints and hostel records.",
       },
-      { property: "og:title", content: "Hostel Management — EduSuite Pro" },
-      { property: "og:description", content: "Manage hostel accommodation, room details, mess services, gate passes, complaints and hostel payments." },
     ],
   }),
   component: StudentHostelRoute,
 });
 
 function StudentHostelRoute() {
-  return <StudentHostelModule />;
+  return <PersonalizedStudentPortal initialTab="dashboard" />;
 }
