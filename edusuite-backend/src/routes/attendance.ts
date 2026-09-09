@@ -57,7 +57,7 @@ router.post("/", authenticateToken, async (req: AuthenticatedRequest, res: Respo
 
     const record = await prisma.attendanceRecord.upsert({
       where: {
-        userId_date: { userId, date },
+        userId_date_periodNumber: { userId, date, periodNumber: 1 },
       },
       update: {
         status,

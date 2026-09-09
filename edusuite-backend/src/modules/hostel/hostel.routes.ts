@@ -1,7 +1,45 @@
-import { Router } from "express";
+import { Router, Response, NextFunction } from "express";
 import { HostelController } from "./hostel.controller";
+import { authenticateToken, AuthenticatedRequest } from "../auth/auth.routes";
 
 const router = Router();
+
+const AUTHORIZED_HOSTEL_ROLES = [
+  "super_admin",
+  "admin",
+  "warden",
+  "hostel_warden",
+  "hostel_staff",
+  "principal",
+  "vice_principal",
+  "student" // students can view their own registrations/leaves
+];
+
+export function requireHostelStaff(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  if (!req.userId || !req.userRole) {
+    return res.status(401).json({ error: "Unauthorized. Authentication token required." });
+  }
+
+  const role = req.userRole.toLowerCase().replace(/-/g, "_");
+
+  // Explicitly block HOD role from hostel endpoints
+  if (role === "hod") {
+    return res.status(403).json({
+      error: "Access denied. HOD role is not authorized for Hostel Management."
+    });
+  }
+
+  if (AUTHORIZED_HOSTEL_ROLES.includes(role)) {
+    return next();
+  }
+
+  return res.status(403).json({
+    error: "Access denied. Insufficient institutional permissions for Hostel Management."
+  });
+}
+
+// Apply authentication & authorization middleware to all hostel routes
+router.use(authenticateToken as any, requireHostelStaff as any);
 
 // Dashboard
 router.get("/dashboard", HostelController.getDashboard);
@@ -60,3 +98,4 @@ router.post("/registrations/:id/allocate", HostelController.allocateRegistration
 router.patch("/registrations/:id/status", HostelController.rejectRegistration);
 
 export default router;
+

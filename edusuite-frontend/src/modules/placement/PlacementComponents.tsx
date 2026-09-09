@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
+import { useRole } from "@/context/role-context";
 import {
   fetchPlacementDrives,
   fetchPlacedStudents,
@@ -52,6 +53,10 @@ import {
 } from "./PlacementService";
 
 export function PlacementModuleView() {
+  const { role, flags, department: userDept, profile } = useRole();
+  const isHod = role === "hod" || flags?.includes("isHod");
+  const hodDept = userDept || (profile?.department as string) || "CSE";
+
   const [drives, setDrives] = useState<PlacementDrive[]>(INITIAL_DRIVES);
   const [placed, setPlaced] = useState<PlacedStudent[]>(INITIAL_PLACED);
   const [activeTab, setActiveTab] = useState<"drives" | "placed">("drives");
@@ -68,7 +73,7 @@ export function PlacementModuleView() {
     companyName: "Amazon Web Services",
     jobRole: "Cloud Systems Engineer",
     ctcLpa: 18.0,
-    eligibleDepts: ["CSE", "ECE", "AI&DS"],
+    eligibleDepts: [hodDept],
     driveDate: "2026-08-25",
     location: "Campus Placement Block",
   });
@@ -76,7 +81,7 @@ export function PlacementModuleView() {
   const [offerForm, setOfferForm] = useState<Partial<PlacedStudent>>({
     rollNo: "22AIDS012",
     studentName: "Rohan Varma",
-    department: "AI&DS",
+    department: hodDept,
     companyName: "Google India",
     jobRole: "SDE-1",
     ctcLpa: 32.5,
@@ -95,9 +100,21 @@ export function PlacementModuleView() {
   }, []);
 
   const filteredDrives = drives.filter((d) => {
+    const matchesDept = !isHod || d.eligibleDepts.includes(hodDept) || d.eligibleDepts.includes("All");
     return (
-      d.companyName.toLowerCase().includes(search.toLowerCase()) ||
-      d.jobRole.toLowerCase().includes(search.toLowerCase())
+      matchesDept &&
+      (d.companyName.toLowerCase().includes(search.toLowerCase()) ||
+        d.jobRole.toLowerCase().includes(search.toLowerCase()))
+    );
+  });
+
+  const filteredPlaced = placed.filter((p) => {
+    const matchesDept = !isHod || p.department.trim().toUpperCase() === hodDept.trim().toUpperCase();
+    return (
+      matchesDept &&
+      (p.studentName.toLowerCase().includes(search.toLowerCase()) ||
+        p.companyName.toLowerCase().includes(search.toLowerCase()) ||
+        p.rollNo.toLowerCase().includes(search.toLowerCase()))
     );
   });
 

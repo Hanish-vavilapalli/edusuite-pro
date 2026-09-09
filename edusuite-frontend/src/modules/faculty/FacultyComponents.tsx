@@ -73,6 +73,7 @@ import {
   type FacultyStats,
 } from "./FacultyService";
 import { useAcademic } from "@/context/academic-context";
+import { useRole } from "@/context/role-context";
 import {
   fetchLiveFacultyStatus,
   fetchFacultyFullDaySchedule,
@@ -136,6 +137,11 @@ const STATUS_LIST = ["All Status", "Active", "On Leave", "Sabbatical"] as const;
 
 export function FacultyModuleView({ initialTab = "faculty-status" }: { initialTab?: FacultySubpart }) {
   const { selectedDepartment } = useAcademic();
+  const roleCtx = useRole();
+  const currentRole = (roleCtx?.role || "").toLowerCase();
+  const isHod = currentRole === "hod" || currentRole.includes("hod");
+  const authDept = roleCtx?.department || selectedDepartment || "CSE";
+
   const [activeSubpart, setActiveSubpart] = useState<FacultySubpart>(initialTab);
 
   useEffect(() => {
@@ -196,6 +202,8 @@ export function FacultyModuleView({ initialTab = "faculty-status" }: { initialTa
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [selectedFac, setSelectedFac] = useState<FacultyRecord | null>(null);
 
+  const activeDeptScope = isHod ? authDept : (selectedDeptFilter !== "All Departments" ? selectedDeptFilter : selectedDepartment);
+
   // Form State
   const [formData, setFormData] = useState<Partial<FacultyRecord>>({
     empId: "",
@@ -227,7 +235,7 @@ export function FacultyModuleView({ initialTab = "faculty-status" }: { initialTa
       };
 
       const response = await getFaculty({
-        department: selectedDepartment,
+        department: activeDeptScope,
         page: currentPage,
         limit: pageSize,
         search,
@@ -242,7 +250,7 @@ export function FacultyModuleView({ initialTab = "faculty-status" }: { initialTa
       setTotalPages(response.totalPages);
       setTotalRecords(response.total);
 
-      const statsData = await fetchFacultyStats(selectedDepartment);
+      const statsData = await fetchFacultyStats(activeDeptScope);
       setStats(statsData);
     } catch {
       toast.error("Failed to sync faculty roster data.");
@@ -254,11 +262,11 @@ export function FacultyModuleView({ initialTab = "faculty-status" }: { initialTa
   // Reload when scope changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedDepartment, search, selectedDesig, selectedQual, selectedExp, selectedStatus, sortKey, sortOrder]);
+  }, [activeDeptScope, search, selectedDesig, selectedQual, selectedExp, selectedStatus, sortKey, sortOrder]);
 
   useEffect(() => {
     loadData();
-  }, [selectedDepartment, currentPage, search, selectedDesig, selectedQual, selectedExp, selectedStatus, sortKey, sortOrder]);
+  }, [activeDeptScope, currentPage, search, selectedDesig, selectedQual, selectedExp, selectedStatus, sortKey, sortOrder]);
 
   // Fetch Live Faculty Status Matrix for selectedPeriod, department & search
   useEffect(() => {
@@ -266,7 +274,7 @@ export function FacultyModuleView({ initialTab = "faculty-status" }: { initialTa
       setLiveStatusLoading(true);
       setLiveStatusError(false);
       try {
-        const statuses = await fetchLiveFacultyStatus(selectedPeriod, selectedDeptFilter, search);
+        const statuses = await fetchLiveFacultyStatus(selectedPeriod, activeDeptScope, search);
         setFacultyStatuses(statuses || []);
       } catch (err) {
         setLiveStatusError(true);
@@ -278,7 +286,7 @@ export function FacultyModuleView({ initialTab = "faculty-status" }: { initialTa
     if (activeSubpart === "faculty-status") {
       loadLiveStatus();
     }
-  }, [selectedPeriod, selectedDeptFilter, search, activeSubpart]);
+  }, [selectedPeriod, activeDeptScope, search, activeSubpart]);
 
   // Handlers
   const handleSort = (key: keyof FacultyRecord) => {
@@ -514,7 +522,7 @@ export function FacultyModuleView({ initialTab = "faculty-status" }: { initialTa
                 Faculty Workspace Control
               </h1>
               <Badge variant="outline" className="font-mono text-xs text-primary border-primary/30 uppercase bg-primary/5">
-                DEAN: {selectedDepartment}
+                {isHod ? `${authDept} DEPARTMENT` : `DEAN: ${selectedDepartment}`}
               </Badge>
             </div>
             <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
@@ -648,11 +656,18 @@ export function FacultyModuleView({ initialTab = "faculty-status" }: { initialTa
             />
           </div>
 
-          {/* Department indicator lock */}
-          <div className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border/80 bg-muted/40 text-xs font-bold text-foreground">
-            <Building2 className="size-3.5 text-muted-foreground" />
-            <span>Scope: {selectedDepartment}</span>
-          </div>
+                {/* Department indicator lock */}
+          {isHod ? (
+            <div className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-primary/30 bg-primary/5 text-xs font-bold text-primary">
+              <Building2 className="size-3.5 text-primary" />
+              <span>Scope: {authDept} Department</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border/80 bg-muted/40 text-xs font-bold text-foreground">
+              <Building2 className="size-3.5 text-muted-foreground" />
+              <span>Scope: {selectedDepartment}</span>
+            </div>
+          )}
 
           {/* Designation Filter */}
           <Select value={selectedDesig} onValueChange={setSelectedDesig}>
@@ -701,18 +716,42 @@ export function FacultyModuleView({ initialTab = "faculty-status" }: { initialTa
 
           {/* Status Filter */}
           <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-            <SelectTrigger className="h-9 w-full sm:w-[110px] text-xs">
-              <Filter className="size-3.5 mr-1.5 text-muted-foreground" />
+            <SelectTrigger className="h-9 w-full sm:w-[130px] text-xs">
+              <UserCheck className="size-3.5 mr-1.5 text-muted-foreground" />
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              {STATUS_LIST.map((st) => (
-                <SelectItem key={st} value={st} className="text-xs">
-                  {st}
+              {STATUS_LIST.map((s) => (
+                <SelectItem key={s} value={s} className="text-xs">
+                  {s}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Action Controls */}
+        <div className="flex items-center gap-2">
+          {(selectedDesig !== "All Designations" ||
+            selectedQual !== "All Qualifications" ||
+            selectedExp !== "All Experience" ||
+            selectedStatus !== "All Status" ||
+            search !== "") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearch("");
+                setSelectedDesig("All Designations");
+                setSelectedQual("All Qualifications");
+                setSelectedExp("All Experience");
+                setSelectedStatus("All Status");
+              }}
+              className="h-9 text-xs text-muted-foreground hover:text-foreground gap-1"
+            >
+              <RotateCcw className="size-3" /> Reset
+            </Button>
+          )}
         </div>
       </div>
 
@@ -903,16 +942,25 @@ export function FacultyModuleView({ initialTab = "faculty-status" }: { initialTa
             </div>
 
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="px-3 py-1.5 text-xs font-mono font-bold border-primary/30 text-primary bg-primary/5 shrink-0">
-                {filteredFacultyStatus.length} Faculty
-              </Badge>
+              {isHod ? (
+                <Badge variant="outline" className="px-3 py-1.5 text-xs font-mono font-bold border-primary/30 text-primary bg-primary/5 shrink-0">
+                  {filteredFacultyStatus.length} Faculty &middot; {authDept}
+                </Badge>
+              ) : (
+                <>
+                  <Badge variant="outline" className="px-3 py-1.5 text-xs font-mono font-bold border-primary/30 text-primary bg-primary/5 shrink-0">
+                    {filteredFacultyStatus.length} Faculty
+                  </Badge>
 
-              <Select value={selectedDeptFilter} onValueChange={setSelectedDeptFilter}>
-                <SelectTrigger className="h-9 text-xs w-[160px] rounded-xl"><SelectValue placeholder="Department" /></SelectTrigger>
-                <SelectContent>
-                  {DEPARTMENTS_LIST.map((d) => (<SelectItem key={d} value={d} className="text-xs">{d}</SelectItem>))}
-                </SelectContent>
-              </Select>
+                  <Select value={selectedDeptFilter} onValueChange={setSelectedDeptFilter}>
+                    <SelectTrigger className="h-9 text-xs w-[160px] rounded-xl"><SelectValue placeholder="Department" /></SelectTrigger>
+                    <SelectContent>
+                      {DEPARTMENTS_LIST.map((d) => (<SelectItem key={d} value={d} className="text-xs">{d}</SelectItem>))}
+                    </SelectContent>
+                  </Select>
+                </>
+              )}
+
               <div className="relative flex-1 min-w-[150px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
                 <Input placeholder="Search faculty..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-9 text-xs rounded-xl" />

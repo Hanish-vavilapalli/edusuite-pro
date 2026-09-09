@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, Link } from "@tanstack/react-router";
 import { ShieldAlert } from "lucide-react";
 import { useRole } from "@/context/role-context";
+import { normalizeRole } from "@/lib/roleResolver";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { Button } from "@/components/ui/button";
 
@@ -10,9 +11,11 @@ export const Route = createFileRoute("/hod")({
 
 function HodLayout() {
   const { role, flags } = useRole();
-  const isSuperAdmin = role === "super-admin" || role === "super_admin";
+  const norm = normalizeRole(role);
+  const isSuperAdmin = norm === "super_admin" || norm === "admin";
+  const isAuthorized = isSuperAdmin || norm === "hod" || role === "hod" || role === "staff" || flags.includes("isHod");
 
-  if (!isSuperAdmin && (role !== "staff" || !flags.includes("isHod"))) {
+  if (!isAuthorized) {
     return (
       <div className="flex h-screen items-center justify-center p-4 bg-background">
         <div className="text-center max-w-md border border-destructive/20 bg-destructive/5 rounded-2xl p-6">

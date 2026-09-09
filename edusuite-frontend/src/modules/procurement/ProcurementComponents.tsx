@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
+import { useRole } from "@/context/role-context";
 import {
   fetchPurchaseOrders,
   createPurchaseOrder,
@@ -70,10 +71,14 @@ const STATUS_TABS = [
 ] as const;
 
 export function ProcurementModuleView() {
+  const { role, flags, department: userDept, profile } = useRole();
+  const isHod = role === "hod" || flags?.includes("isHod");
+  const hodDept = userDept || (profile?.department as string) || "CSE";
+
   const [orders, setOrders] = useState<PurchaseOrder[]>(INITIAL_PURCHASE_ORDERS);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<(typeof STATUS_TABS)[number]>("All");
-  const [selectedDept, setSelectedDept] = useState("All Departments");
+  const [selectedDept, setSelectedDept] = useState(isHod ? hodDept : "All Departments");
   const [loading, setLoading] = useState(false);
 
   // Dialog States
@@ -84,8 +89,8 @@ export function ProcurementModuleView() {
   // Form State for Creating PO
   const [formData, setFormData] = useState<Partial<PurchaseOrder>>({
     vendorName: "",
-    requestedBy: "Dr. Rajesh Sharma",
-    department: "CSE",
+    requestedBy: profile?.name || "Dr. S. K. Gupta",
+    department: hodDept,
     itemsDescription: "",
     totalAmount: 250000,
     deliveryDate: "2026-08-30",
@@ -112,7 +117,8 @@ export function ProcurementModuleView() {
       po.itemsDescription.toLowerCase().includes(search.toLowerCase());
 
     const matchesTab = activeTab === "All" || po.approvalStatus === activeTab;
-    const matchesDept = selectedDept === "All Departments" || po.department === selectedDept;
+    const effectiveDept = isHod ? hodDept : selectedDept;
+    const matchesDept = effectiveDept === "All Departments" || po.department.trim().toUpperCase() === effectiveDept.trim().toUpperCase();
 
     return matchesSearch && matchesTab && matchesDept;
   });

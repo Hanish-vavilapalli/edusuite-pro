@@ -11,12 +11,5 @@ export const Route = createFileRoute("/faculty/dashboard")({
 });
 
 function FacultyDashboardPage() {
-  const { role } = useRole();
-  const isSuperAdmin = role === "super-admin" || role === "super_admin";
-
-  if (isSuperAdmin) {
-    return <FacultyModuleView initialTab="faculty-status" />;
-  }
-
-  return <StaffDashboard />;
+  return <FacultyModuleView initialTab="faculty-status" />;
 }

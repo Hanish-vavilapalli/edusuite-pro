@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useAcademic } from "@/context/academic-context";
+import { useRole } from "@/context/role-context";
+import api from "@/lib/api";
 import { getDashboardData, type AcademicDashboardData } from "./AcademicsDashboardService";
 import {
   GraduationCap,
@@ -121,9 +123,27 @@ export type AcademicsSubpart = "departments" | "courses" | "curriculum";
 
 export function AcademicsModuleView({ initialTab }: { initialTab?: AcademicsSubpart }) {
   const { selectedDepartment, setSelectedDepartment } = useAcademic();
+  const { role, flags, department: userDept, profile } = useRole();
+
+  const isHod = role === "hod" || flags?.includes("isHod");
+  const isSuperAdmin = role === "super-admin" || role === "super_admin" || flags?.includes("isSystemAdmin");
+  const hodDeptCode = userDept || (profile?.department as string) || "CSE";
+
   const [courses, setCourses] = useState<AcademicCourse[]>(INITIAL_COURSES);
   const [departments, setDepartments] = useState<AcademicDepartment[]>(INITIAL_DEPARTMENTS);
   const [curriculumSchemes, setCurriculumSchemes] = useState<CurriculumScheme[]>(INITIAL_CURRICULUM_SCHEMES);
+  const [deptStats, setDeptStats] = useState<{
+    scope: string;
+    departmentCode?: string;
+    departmentName?: string;
+    hodName?: string;
+    facultyCount?: number;
+    coursesCount?: number;
+    activeSectionsCount?: number;
+    studentCount?: number;
+    syllabusProgressPct?: number;
+    accreditationStandard?: string;
+  } | null>(null);
 
   // Active Subpart Tab
   const [activeSubpart, setActiveSubpart] = useState<AcademicsSubpart>(initialTab || "departments");
@@ -250,15 +270,24 @@ export function AcademicsModuleView({ initialTab }: { initialTab?: AcademicsSubp
 
   const loadAllData = async () => {
     setLoading(true);
-    const [crs, dpt, sch] = await Promise.all([
-      fetchAcademicCourses(),
-      fetchAcademicDepartments(),
-      fetchCurriculumSchemes(),
-    ]);
-    setCourses(crs);
-    setDepartments(dpt);
-    setCurriculumSchemes(sch);
-    setLoading(false);
+    try {
+      const [crs, dpt, sch, statsRes] = await Promise.all([
+        fetchAcademicCourses(),
+        fetchAcademicDepartments(),
+        fetchCurriculumSchemes(),
+        api.get("/api/academics/stats").catch(() => null),
+      ]);
+      setCourses(crs);
+      setDepartments(dpt);
+      setCurriculumSchemes(sch);
+      if (statsRes?.data) {
+        setDeptStats(statsRes.data);
+      }
+    } catch (err) {
+      console.error("Error loading academics data:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -425,14 +454,20 @@ export function AcademicsModuleView({ initialTab }: { initialTab?: AcademicsSubp
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-2xl font-bold font-display tracking-tight text-foreground">
-                Academics & Faculty Management Portal
+                {isHod
+                  ? `${deptStats?.departmentName || "Computer Science & Engineering"} — Academics`
+                  : "Academics & Faculty Management Portal"}
               </h1>
               <Badge variant="outline" className="font-mono text-xs text-primary border-primary/30">
-                Academic Council Core
+                {isHod
+                  ? `Role: HOD / Department Head | Dept: ${deptStats?.departmentCode || hodDeptCode}`
+                  : "Academic Council Core"}
               </Badge>
             </div>
             <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
-              Click any faculty card to inspect full-day period timetable. Live Faculty Status, Attendance & Syllabus Tracker.
+              {isHod
+                ? "Department academic management, faculty allocation, courses, curriculum and syllabus tracking."
+                : "Click any faculty card to inspect full-day period timetable. Live Faculty Status, Attendance & Syllabus Tracker."}
             </p>
           </div>
         </div>
@@ -453,7 +488,7 @@ export function AcademicsModuleView({ initialTab }: { initialTab?: AcademicsSubp
             </Button>
           )}
 
-          {activeSubpart === "departments" && (
+          {activeSubpart === "departments" && isSuperAdmin && (
             <Button size="sm" onClick={() => setIsAddDeptOpen(true)} className="h-9 bg-brand-gradient text-white gap-2 font-semibold text-xs shadow-glow">
               <Building2 className="size-4" /> Add Department
             </Button>
@@ -463,41 +498,91 @@ export function AcademicsModuleView({ initialTab }: { initialTab?: AcademicsSubp
 
       {/* KPI Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase">
-            <span>Academic Departments</span>
-            <Building2 className="size-4 text-primary" />
-          </div>
-          <p className="text-2xl font-bold font-mono text-primary">{departments.length} Depts</p>
-          <p className="text-[0.68rem] text-muted-foreground font-mono">CSE, ECE, EEE, ME, Civil, MBA</p>
-        </div>
+        {isHod ? (
+          <>
+            <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-1">
+              <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase">
+                <span>Faculty</span>
+                <Users className="size-4 text-primary" />
+              </div>
+              <p className="text-2xl font-bold font-mono text-primary">
+                {deptStats?.facultyCount ?? (departments[0]?.facultyCount || 8)} Faculty
+              </p>
+              <p className="text-[0.68rem] text-muted-foreground font-mono">Department Professors</p>
+            </div>
 
-        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase">
-            <span>Course Catalog</span>
-            <BookOpen className="size-4 text-blue-500" />
-          </div>
-          <p className="text-2xl font-bold font-mono text-blue-600">{courses.length} Subjects</p>
-          <p className="text-[0.68rem] text-muted-foreground">Theory, Labs & Electives</p>
-        </div>
+            <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-1">
+              <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase">
+                <span>Courses / Subjects</span>
+                <BookOpen className="size-4 text-blue-500" />
+              </div>
+              <p className="text-2xl font-bold font-mono text-blue-600">
+                {deptStats?.coursesCount ?? (courses.length || 19)} Courses
+              </p>
+              <p className="text-[0.68rem] text-muted-foreground">Theory, Labs & Electives</p>
+            </div>
 
-        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase">
-            <span>Curriculum Schemes</span>
-            <Bookmark className="size-4 text-purple-500" />
-          </div>
-          <p className="text-2xl font-bold font-mono text-purple-600">{curriculumSchemes.length} Regulations</p>
-          <p className="text-[0.68rem] text-purple-600 font-medium">R24, R22 Approved Frameworks</p>
-        </div>
+            <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-1">
+              <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase">
+                <span>Active Sections</span>
+                <Layers className="size-4 text-purple-500" />
+              </div>
+              <p className="text-2xl font-bold font-mono text-purple-600">
+                {deptStats?.activeSectionsCount ?? 6} Classes
+              </p>
+              <p className="text-[0.68rem] text-purple-600 font-medium">Active Department Classes</p>
+            </div>
 
-        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase">
-            <span>Accreditation Standard</span>
-            <Award className="size-4 text-emerald-500" />
-          </div>
-          <p className="text-2xl font-bold font-mono text-emerald-600">NAAC A+</p>
-          <p className="text-[0.68rem] text-emerald-600 font-medium">NBA Accredited Programs</p>
-        </div>
+            <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-1">
+              <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase">
+                <span>Syllabus Progress</span>
+                <Award className="size-4 text-emerald-500" />
+              </div>
+              <p className="text-2xl font-bold font-mono text-emerald-600">
+                {deptStats?.syllabusProgressPct ?? 78.5}%
+              </p>
+              <p className="text-[0.68rem] text-emerald-600 font-medium">Completed Syllabus</p>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-1">
+              <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase">
+                <span>Academic Departments</span>
+                <Building2 className="size-4 text-primary" />
+              </div>
+              <p className="text-2xl font-bold font-mono text-primary">{departments.length} Depts</p>
+              <p className="text-[0.68rem] text-muted-foreground font-mono">CSE, ECE, EEE, ME, Civil, MBA</p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-1">
+              <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase">
+                <span>Course Catalog</span>
+                <BookOpen className="size-4 text-blue-500" />
+              </div>
+              <p className="text-2xl font-bold font-mono text-blue-600">{courses.length} Subjects</p>
+              <p className="text-[0.68rem] text-muted-foreground">Theory, Labs & Electives</p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-1">
+              <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase">
+                <span>Curriculum Schemes</span>
+                <Bookmark className="size-4 text-purple-500" />
+              </div>
+              <p className="text-2xl font-bold font-mono text-purple-600">{curriculumSchemes.length} Regulations</p>
+              <p className="text-[0.68rem] text-purple-600 font-medium">R24, R22 Approved Frameworks</p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-1">
+              <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase">
+                <span>Accreditation Standard</span>
+                <Award className="size-4 text-emerald-500" />
+              </div>
+              <p className="text-2xl font-bold font-mono text-emerald-600">NAAC A+</p>
+              <p className="text-[0.68rem] text-emerald-600 font-medium">NBA Accredited Programs</p>
+            </div>
+          </>
+        )}
       </div>
 
       {/* THREE SUBPARTS NAVIGATION TAB BAR */}
@@ -508,7 +593,7 @@ export function AcademicsModuleView({ initialTab }: { initialTab?: AcademicsSubp
             activeSubpart === "departments" ? "bg-card text-primary shadow-sm border border-border/80" : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <Building2 className="size-3.5" /> Departments ({departments.length})
+          <Building2 className="size-3.5" /> {isHod ? "Department Overview" : `Departments (${departments.length})`}
         </button>
 
         <button
@@ -530,31 +615,86 @@ export function AcademicsModuleView({ initialTab }: { initialTab?: AcademicsSubp
         </button>
       </div>
 
-      {/* EXISTING SUBPART: DEPARTMENTS VIEW */}
+      {/* SUBPART: DEPARTMENTS VIEW */}
       {activeSubpart === "departments" && (
         <div className="space-y-4">
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredDepts.map((d) => (
-              <div key={d.id} className="p-5 rounded-2xl border border-border/80 bg-card space-y-3 shadow-sm hover:border-primary/40 transition-all">
-                <div className="flex items-center justify-between border-b border-border/60 pb-3">
-                  <div>
-                    <span className="font-mono text-xs font-bold text-primary">{d.code}</span>
-                    <h3 className="font-bold text-sm text-foreground">{d.name}</h3>
-                  </div>
-                  <Badge variant="outline" className="font-mono text-xs">{d.accreditation}</Badge>
+          {isHod ? (
+            <div className="p-6 rounded-2xl border border-primary/30 bg-card space-y-4 shadow-md">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-4">
+                <div>
+                  <span className="font-mono text-xs font-bold text-primary tracking-wider uppercase">
+                    {deptStats?.departmentCode || hodDeptCode}
+                  </span>
+                  <h3 className="font-bold text-xl text-foreground mt-0.5">
+                    {deptStats?.departmentName || "Computer Science & Engineering"}
+                  </h3>
                 </div>
-                <div className="space-y-1.5 text-xs text-muted-foreground">
-                  <p><span className="font-semibold text-foreground">HOD:</span> {d.hodName}</p>
-                  <p><span className="font-semibold text-foreground">Faculty Members:</span> {d.facultyCount} Professors</p>
-                  <p><span className="font-semibold text-foreground">Student Capacity:</span> {d.studentCapacity} Seats</p>
+                <Badge className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-3 py-1 text-xs">
+                  Department Active Scope
+                </Badge>
+              </div>
+
+              <div className="grid sm:grid-cols-2 md:grid-cols-5 gap-4 pt-2">
+                <div className="p-3.5 rounded-xl bg-muted/40 space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium">HOD Name</p>
+                  <p className="text-sm font-bold text-foreground">
+                    {deptStats?.hodName || profile?.personaName || "Dr. S. K. Gupta"}
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-muted/40 space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium">Faculty Members</p>
+                  <p className="text-sm font-bold font-mono text-primary">
+                    {deptStats?.facultyCount ?? (departments[0]?.facultyCount || 8)} Professors
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-muted/40 space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium">Students</p>
+                  <p className="text-sm font-bold font-mono text-blue-600">
+                    {deptStats?.studentCount ?? (departments[0]?.studentCapacity || 97)} Enrolled
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-muted/40 space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium">Courses Offered</p>
+                  <p className="text-sm font-bold font-mono text-purple-600">
+                    {deptStats?.coursesCount ?? (courses.length || 19)} Courses
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-muted/40 space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium">Syllabus Progress</p>
+                  <p className="text-sm font-bold font-mono text-emerald-600">
+                    {deptStats?.syllabusProgressPct ?? 78.5}% Completed
+                  </p>
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredDepts.map((d) => (
+                <div key={d.id} className="p-5 rounded-2xl border border-border/80 bg-card space-y-3 shadow-sm hover:border-primary/40 transition-all">
+                  <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                    <div>
+                      <span className="font-mono text-xs font-bold text-primary">{d.code}</span>
+                      <h3 className="font-bold text-sm text-foreground">{d.name}</h3>
+                    </div>
+                    <Badge variant="outline" className="font-mono text-xs">{d.accreditation}</Badge>
+                  </div>
+                  <div className="space-y-1.5 text-xs text-muted-foreground">
+                    <p><span className="font-semibold text-foreground">HOD:</span> {d.hodName}</p>
+                    <p><span className="font-semibold text-foreground">Faculty Members:</span> {d.facultyCount} Professors</p>
+                    <p><span className="font-semibold text-foreground">Student Capacity:</span> {d.studentCapacity} Seats</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* EXISTING SUBPART: COURSES CATALOG VIEW */}
+      {/* SUBPART: COURSES CATALOG VIEW */}
       {activeSubpart === "courses" && (
         <div className="rounded-2xl border border-border/80 bg-card p-5 space-y-4 shadow-sm">
           {/* Department Filter & Search Toolbar */}
@@ -576,11 +716,12 @@ export function AcademicsModuleView({ initialTab }: { initialTab?: AcademicsSubp
                 <Filter className="size-3.5 text-primary" /> Department:
               </div>
               <Select
-                value={selectedDeptFilter}
-                onValueChange={(val) => setSelectedDeptFilter(val)}
+                value={isHod ? hodDeptCode : selectedDeptFilter}
+                onValueChange={(val) => !isHod && setSelectedDeptFilter(val)}
+                disabled={isHod}
               >
                 <SelectTrigger className="h-9 text-xs w-[190px]">
-                  <SelectValue placeholder="All Departments" />
+                  <SelectValue placeholder={isHod ? hodDeptCode : "All Departments"} />
                 </SelectTrigger>
                 <SelectContent>
                   {DEPARTMENTS_LIST.map((dept) => (

@@ -632,6 +632,29 @@ export function navigationForUser(user: UserPermissionContext, currentPath?: str
 
       let items = section.items
         .filter((item) => {
+          // Hide Pre-Admission, Admission, Library, Hostel, and Transport for HOD users
+          const isHod = user.role === "hod" || user.flags.includes("isHod");
+          if (
+            isHod &&
+            (item.title === "Pre-Admission Portal" ||
+              item.title === "Admission Office" ||
+              item.url === "/pre-admission" ||
+              item.url === "/admission" ||
+              item.moduleId === "pre-admission" ||
+              item.moduleId === "admission" ||
+              item.title === "Library" ||
+              item.url === "/library" ||
+              item.moduleId === "library" ||
+              item.title === "Hostel" ||
+              item.url === "/hostel" ||
+              item.moduleId === "hostel" ||
+              item.title === "Transport" ||
+              item.url === "/transport" ||
+              item.moduleId === "transport")
+          ) {
+            return false;
+          }
+
           // 1. Role level filtering (optional explicit block)
           if (item.roles && !item.roles.includes(user.role)) {
             return false;

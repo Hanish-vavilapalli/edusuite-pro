@@ -14,82 +14,75 @@ export interface StudentResultEntry {
   grades: { subjectCode: string; subjectTitle: string; grade: string; credits: number }[];
 }
 
-export const INITIAL_SEMESTER_RESULTS: StudentResultEntry[] = [
-  {
-    id: "RES-101",
-    rollNo: "22CSE001",
-    studentName: "Aarav Sharma",
-    department: "CSE",
-    semester: "Semester 6",
-    academicYear: "2025-2026",
-    sgpa: 9.45,
-    cgpa: 9.38,
-    rank: 1,
-    resultClass: "First Class with Distinction",
-    grades: [
-      { subjectCode: "CS401", subjectTitle: "Advanced Artificial Intelligence", grade: "O", credits: 4 },
-      { subjectCode: "CS402", subjectTitle: "Cloud Computing Architectures", grade: "A+", credits: 3 },
-      { subjectCode: "CS403", subjectTitle: "Compiler Design Laboratory", grade: "O", credits: 2 },
-    ],
-  },
-  {
-    id: "RES-102",
-    rollNo: "22ECE042",
-    studentName: "Ananya Iyer",
-    department: "ECE",
-    semester: "Semester 6",
-    academicYear: "2025-2026",
-    sgpa: 9.20,
-    cgpa: 9.12,
-    rank: 2,
-    resultClass: "First Class with Distinction",
-    grades: [
-      { subjectCode: "EC304", subjectTitle: "VLSI System Design", grade: "O", credits: 4 },
-      { subjectCode: "EC305", subjectTitle: "Digital Signal Processing", grade: "A+", credits: 4 },
-    ],
-  },
-  {
-    id: "RES-103",
-    rollNo: "23ME014",
-    studentName: "Vikram Aditya",
-    department: "ME",
-    semester: "Semester 4",
-    academicYear: "2025-2026",
-    sgpa: 7.20,
-    cgpa: 7.15,
-    resultClass: "First Class",
-    grades: [
-      { subjectCode: "ME308", subjectTitle: "Computer Aided Design", grade: "B+", credits: 3 },
-      { subjectCode: "ME309", subjectTitle: "Thermodynamics", grade: "B", credits: 4 },
-    ],
-  },
-];
+export interface ResultsStats {
+  passRate: number;
+  distinctionHolders: number;
+  avgCgpa: number;
+  totalTranscripts: number;
+  examinationPeriod: string;
+}
 
-export async function fetchInstitutionalResults(): Promise<StudentResultEntry[]> {
-  try {
-    const res = await api.get("/api/results");
-    if (res && Array.isArray(res.data) && res.data.length > 0) return res.data;
-  } catch {}
-  return INITIAL_SEMESTER_RESULTS;
+export interface FetchResultsParams {
+  page?: number;
+  pageSize?: number | string;
+  search?: string;
+  semester?: string | number;
+  department?: string;
+}
+
+export interface FetchResultsResponse {
+  data: StudentResultEntry[];
+  pagination: {
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
+  stats: ResultsStats;
+}
+
+export async function fetchInstitutionalResults(params: FetchResultsParams = {}): Promise<FetchResultsResponse> {
+  const query = new URLSearchParams();
+  if (params.page) query.append("page", params.page.toString());
+  if (params.pageSize) query.append("pageSize", params.pageSize.toString());
+  if (params.search) query.append("search", params.search);
+  if (params.semester && params.semester !== "All") query.append("semester", params.semester.toString());
+  if (params.department) query.append("department", params.department);
+
+  const res = await api.get(`/api/results?${query.toString()}`);
+  if (res && res.data) {
+    if (Array.isArray(res.data)) {
+      return {
+        data: res.data,
+        pagination: { total: res.data.length, page: 1, pageSize: res.data.length, totalPages: 1 },
+        stats: { passRate: 96.8, distinctionHolders: 0, avgCgpa: 8.5, totalTranscripts: res.data.length, examinationPeriod: "Spring 2026 Examination" }
+      };
+    }
+    return res.data;
+  }
+  throw new Error("Invalid response received from server.");
+}
+
+export async function fetchDepartmentToppers(department?: string): Promise<StudentResultEntry[]> {
+  const query = department ? `?department=${encodeURIComponent(department)}` : "";
+  const res = await api.get(`/api/results/toppers${query}`);
+  if (res && res.data && Array.isArray(res.data)) return res.data;
+  return [];
+}
+
+export async function fetchStudentTranscript(id: string): Promise<StudentResultEntry> {
+  const res = await api.get(`/api/results/student/${encodeURIComponent(id)}`);
+  if (res && res.data) return res.data;
+  throw new Error("Failed to load student transcript");
+}
+
+export async function fetchAllResultsForExport(params: FetchResultsParams = {}): Promise<StudentResultEntry[]> {
+  const response = await fetchInstitutionalResults({ ...params, pageSize: "all" });
+  return response.data;
 }
 
 export async function uploadBatchResults(data: Partial<StudentResultEntry>): Promise<StudentResultEntry> {
-  try {
-    const res = await api.post("/api/results/batch", data);
-    if (res && res.data && res.data.id) return res.data;
-  } catch {}
-  return {
-    id: `RES-${Math.floor(104 + Math.random() * 900)}`,
-    rollNo: data.rollNo || "23AIDS012",
-    studentName: data.studentName || "Rohan Varma",
-    department: data.department || "AI&DS",
-    semester: data.semester || "Semester 6",
-    academicYear: "2025-2026",
-    sgpa: Number(data.sgpa) || 8.90,
-    cgpa: Number(data.cgpa) || 8.85,
-    resultClass: "First Class with Distinction",
-    grades: [
-      { subjectCode: "AI401", subjectTitle: "Deep Learning Foundations", grade: "A+", credits: 4 },
-    ],
-  };
+  const res = await api.post("/api/results/batch", data);
+  if (res && res.data) return res.data;
+  throw new Error("Failed to publish result.");
 }

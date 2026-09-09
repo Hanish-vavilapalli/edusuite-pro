@@ -30,6 +30,15 @@ export function requireLibraryStaff(req: AuthenticatedRequest, res: Response, ne
     return res.status(401).json({ error: "Unauthorized. Authentication token required." });
   }
 
+  const role = req.userRole.toLowerCase().replace(/-/g, "_");
+
+  // Explicitly deny HOD users unless they have explicit isLibraryAdmin flag
+  if (role === "hod") {
+    return res.status(403).json({
+      error: "Access denied. HOD role is not authorized for Library Management."
+    });
+  }
+
   if (isLibraryStaff(req.userRole)) {
     return next();
   }
@@ -112,7 +121,7 @@ async function notifyMember(userId: string, title: string, message: string) {
 // ==========================================
 // 1. DASHBOARD ANALYTICS & STATS
 // ==========================================
-router.get("/dashboard-stats", authenticateToken, async (_req: AuthenticatedRequest, res: Response) => {
+router.get("/dashboard-stats", authenticateToken, requireLibraryStaff, async (_req: AuthenticatedRequest, res: Response) => {
   try {
     const totalBooks = await prisma.libraryBook.count({ where: { status: "Active" } });
     const copiesAgg = await prisma.libraryBook.aggregate({

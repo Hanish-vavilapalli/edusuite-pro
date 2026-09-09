@@ -652,7 +652,7 @@ export class HostelService {
         role: "Student",
         status: reg.status === "REJECTED" ? "DEACTIVATED" : (reg.status === "PENDING_ALLOCATION" ? "PENDING" : "ACTIVE"),
         allocationStatus: reg.allocatedRoomNumber || alloc?.roomNumber ? "ALLOCATED" : "PENDING",
-        blockName: alloc?.blockName || reg.allocatedBlockName || (reg.gender === "Female" ? "Girls Hostel" : "Boys Hostel"),
+        blockName: alloc?.blockName || reg.allocatedBlockName || ((reg as any).gender === "Female" ? "Girls Hostel" : "Boys Hostel"),
         floorName: alloc?.floorName || reg.allocatedFloorName || "Floor 1",
         roomNumber: alloc?.roomNumber || reg.allocatedRoomNumber || "101",
         bedNumber: alloc?.bedNumber || reg.allocatedBedNumber || "Bed-1",
@@ -669,7 +669,7 @@ export class HostelService {
       processedRolls.add(rollKey);
 
       const roll = alloc.rollNumber || alloc.registrationId || alloc.studentId || "STU2026001";
-      const name = alloc.studentName || "Student Resident";
+      const name = (alloc as any).studentName || "Student Resident";
       const firstName = name.trim().split(" ")[0] || "student";
       const department = formatDept("Computer Science (CSE)");
 
@@ -1265,7 +1265,7 @@ export class HostelService {
           bedNumber,
           status: "ACTIVE",
           allocatedBy: data.allocatedBy || "Chief Warden",
-          remarks: data.remarks || `Allocated upon document verification to ${blockName}, Room ${roomNumber} (${bedNumber})`,
+          remarks: (data as any).remarks || `Allocated upon document verification to ${blockName}, Room ${roomNumber} (${bedNumber})`,
         },
       });
 

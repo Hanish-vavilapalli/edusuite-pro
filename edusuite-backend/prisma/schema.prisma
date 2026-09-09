@@ -1,5 +1,5 @@
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -992,29 +992,6 @@ model LibrarySetting {
   instituteName               String   @default("EduSuite Pro Central Institute")
   accessionPrefix             String   @default("GMRIT")
   updatedAt                   DateTime @updatedAt
-}
-<<<<<<< HEAD
-
-model SubjectAllocation {
-  id           String   @id @default(uuid())
-  facultyId    String
-  faculty      Faculty  @relation(fields: [facultyId], references: [id], onDelete: Cascade)
-  courseId     String
-  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  department   String
-  semester     String
-  section      String
-  academicYear String
-  weeklyHours  Int      @default(3)
-  status       String   @default("Active")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@unique([courseId, semester, section, academicYear])
-  @@index([department])
-  @@index([facultyId])
-  @@index([courseId])
-  @@index([academicYear])
 }
 
 // ══════════════════════════════════════════════════════

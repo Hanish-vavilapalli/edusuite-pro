@@ -430,6 +430,20 @@ export function hasPermission(
   moduleId: string,
   action: PermissionAction,
 ): { allowed: boolean; scope: PermissionScope } {
+  // 0. HOD Role Restrictions for Library, Hostel, and Transport
+  const isHodUser = user.role === "hod" || user.flags?.includes("isHod");
+  if (isHodUser) {
+    if (moduleId === "library" && !user.flags?.includes("isLibraryAdmin")) {
+      return { allowed: false, scope: "own" };
+    }
+    if (moduleId === "hostel" && !user.flags?.includes("isHostelWarden")) {
+      return { allowed: false, scope: "own" };
+    }
+    if (moduleId === "transport" && !user.flags?.includes("isTransportOfficer")) {
+      return { allowed: false, scope: "own" };
+    }
+  }
+
   // 0. Licensing & Feature Flags Check
   if (user.featureFlags) {
     if (moduleId === "finance" && !user.featureFlags["finance"])

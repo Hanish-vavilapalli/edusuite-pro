@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet, Navigate } from "@tanstack/react-router";
 import { useRole } from "@/context/role-context";
+import { normalizeRole } from "@/lib/roleResolver";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,10 +12,16 @@ export const Route = createFileRoute("/examcell")({
 
 function ExamcellLayout() {
   const { role, flags } = useRole();
+  const norm = normalizeRole(role);
+  const isSuperAdmin = norm === "super_admin" || norm === "admin";
 
   const isAuthorized =
-    role === "super-admin" ||
-    role === "staff";
+    isSuperAdmin ||
+    norm === "exam_cell" ||
+    norm === "dean" ||
+    role === "staff" ||
+    flags.includes("isExamController") ||
+    flags.includes("isExamAssistant");
 
   if (!isAuthorized) {
     return (

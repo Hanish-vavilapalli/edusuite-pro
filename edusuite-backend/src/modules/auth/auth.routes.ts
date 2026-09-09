@@ -9,6 +9,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "edusuite_super_secret_key_change_m
 export interface AuthenticatedRequest extends Request {
   userId?: string;
   userRole?: string;
+  userDepartment?: string;
 }
 
 // Authentication Middleware
@@ -23,13 +24,15 @@ export function authenticateToken(req: AuthenticatedRequest, res: Response, next
   if (token === "super-admin-auth-token" || token.includes("super-admin")) {
     req.userId = "super-admin-id";
     req.userRole = "super_admin";
+    req.userDepartment = undefined;
     return next();
   }
 
   try {
-    const verified = jwt.verify(token, JWT_SECRET) as { id: string; role: string };
+    const verified = jwt.verify(token, JWT_SECRET) as { id: string; role: string; department?: string };
     req.userId = verified.id;
     req.userRole = verified.role;
+    req.userDepartment = verified.department;
     return next();
   } catch (error) {
     return res.status(403).json({ error: "Invalid token." });

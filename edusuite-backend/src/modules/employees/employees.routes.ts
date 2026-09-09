@@ -84,9 +84,57 @@ function mapFacultyToFrontend(f: any, allCourses: any[]) {
   };
 }
 
+// Department code to prefix / aliases map
+function resolveDeptAliases(dept: string): { code: string; fullNames: string[]; prefix: string } {
+  const clean = (dept || "CSE").toUpperCase().trim();
+  if (clean === "CSE" || clean === "CS" || clean.includes("COMPUTER")) {
+    return { code: "CSE", fullNames: ["CSE", "CS", "Computer Science", "Computer Science & Engineering"], prefix: "CS" };
+  } else if (clean === "ECE" || clean === "EC" || clean.includes("ELECTRONICS")) {
+    return { code: "ECE", fullNames: ["ECE", "EC", "Electronics", "Electronics & Communication Engineering"], prefix: "EC" };
+  } else if (clean === "EEE" || clean === "EE" || clean.includes("ELECTRICAL")) {
+    return { code: "EEE", fullNames: ["EEE", "EE", "Electrical", "Electrical & Electronics Engineering"], prefix: "EE" };
+  } else if (clean === "ME" || clean === "MECHANICAL" || clean.includes("MECHANICAL")) {
+    return { code: "ME", fullNames: ["ME", "MECHANICAL", "Mechanical", "Mechanical Engineering"], prefix: "ME" };
+  } else if (clean === "CIVIL" || clean === "CE" || clean.includes("CIVIL")) {
+    return { code: "CIVIL", fullNames: ["CIVIL", "CE", "Civil", "Civil Engineering"], prefix: "CE" };
+  } else if (clean.includes("AI&ML") || clean.includes("AIML")) {
+    return { code: "AI&ML", fullNames: ["AI&ML", "AIML", "Artificial Intelligence & Machine Learning"], prefix: "AM" };
+  } else if (clean.includes("AI&DS") || clean.includes("AIDS")) {
+    return { code: "AI&DS", fullNames: ["AI&DS", "AIDS", "Artificial Intelligence & Data Science"], prefix: "AD" };
+  } else if (clean === "IT" || clean.includes("INFORMATION")) {
+    return { code: "IT", fullNames: ["IT", "Information Technology"], prefix: "IT" };
+  } else if (clean === "MBA") {
+    return { code: "MBA", fullNames: ["MBA", "Master of Business Administration"], prefix: "MBA" };
+  }
+  return { code: clean, fullNames: [clean], prefix: clean.slice(0, 2) };
+}
+
+// Scope resolution helper
+async function resolveAuthorizedFacultyScope(req: AuthenticatedRequest) {
+  const userRole = (req.userRole || "").toLowerCase();
+  const isSuperAdmin = userRole === "super_admin" || userRole === "superadmin";
+
+  let userDept = req.userDepartment;
+  if (!userDept && req.userId && req.userId !== "super-admin-id") {
+    const fac = await prisma.faculty.findUnique({
+      where: { id: req.userId },
+      select: { department: true },
+    });
+    if (fac?.department) {
+      userDept = fac.department;
+    }
+  }
+
+  return {
+    userRole,
+    isSuperAdmin,
+    userDept: userDept || "CSE",
+  };
+}
+
 // GET /api/faculty & GET /api/employee: Query all Faculty and Admin records from PostgreSQL
 router.get(["/", "/list"], authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
-  const department = req.query.department as string;
+  const departmentQuery = (req.query.department as string) || (req.query.departmentId as string);
   const search = (req.query.search as string || "").toLowerCase();
   const designation = req.query.designation as string;
   const status = req.query.status as string;
@@ -94,27 +142,48 @@ router.get(["/", "/list"], authenticateToken, async (req: AuthenticatedRequest, 
   const limit = parseInt(req.query.limit as string || "10", 10);
 
   try {
-    const whereClause: any = {};
+    const { isSuperAdmin, userDept } = await resolveAuthorizedFacultyScope(req);
 
-    if (department && department !== "All" && department !== "All Departments") {
-      whereClause.department = {
-        contains: department,
-        mode: "insensitive",
-      };
+    // HOD Attempting Cross-Department Parameter Bypass Check
+    if (!isSuperAdmin && departmentQuery && departmentQuery !== "All" && departmentQuery !== "All Departments") {
+      const requestedAliases = resolveDeptAliases(departmentQuery).fullNames.map((f) => f.toUpperCase());
+      const authorizedAliases = resolveDeptAliases(userDept).fullNames.map((f) => f.toUpperCase());
+      const matches = requestedAliases.some((alias) => authorizedAliases.includes(alias));
+      if (!matches) {
+        return res.status(403).json({ error: `Access denied. HOD is strictly restricted to ${userDept} department.` });
+      }
+    }
+
+    const targetDept = isSuperAdmin
+      ? (departmentQuery && departmentQuery !== "All" && departmentQuery !== "All Departments" ? departmentQuery : null)
+      : userDept;
+
+    const whereConditions: any[] = [];
+
+    if (targetDept) {
+      const deptInfo = resolveDeptAliases(targetDept);
+      const deptConditions = deptInfo.fullNames.map((name) => ({
+        department: { contains: name, mode: "insensitive" as const },
+      }));
+      whereConditions.push({ OR: deptConditions });
     }
 
     if (status && status !== "All Status" && status !== "All") {
-      whereClause.status = status;
+      whereConditions.push({ status });
     }
 
     if (search) {
-      whereClause.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { email: { contains: search, mode: "insensitive" } },
-        { rollNumber: { contains: search, mode: "insensitive" } },
-        { department: { contains: search, mode: "insensitive" } },
-      ];
+      whereConditions.push({
+        OR: [
+          { name: { contains: search, mode: "insensitive" as const } },
+          { email: { contains: search, mode: "insensitive" as const } },
+          { rollNumber: { contains: search, mode: "insensitive" as const } },
+          { department: { contains: search, mode: "insensitive" as const } },
+        ],
+      });
     }
+
+    const whereClause = whereConditions.length > 0 ? { AND: whereConditions } : {};
 
     const total = await prisma.faculty.count({ where: whereClause });
     const [faculties, allCourses] = await Promise.all([
@@ -150,13 +219,35 @@ router.get(["/", "/list"], authenticateToken, async (req: AuthenticatedRequest, 
 
 // GET /api/faculty/stats: Calculate faculty dashboard statistics from PostgreSQL
 router.get("/stats", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
-  const department = req.query.department as string;
+  const departmentQuery = (req.query.department as string) || (req.query.departmentId as string);
 
   try {
-    const whereClause: any = {};
-    if (department && department !== "All" && department !== "All Departments") {
-      whereClause.department = { contains: department, mode: "insensitive" };
+    const { isSuperAdmin, userDept } = await resolveAuthorizedFacultyScope(req);
+
+    if (!isSuperAdmin && departmentQuery && departmentQuery !== "All" && departmentQuery !== "All Departments") {
+      const requestedAliases = resolveDeptAliases(departmentQuery).fullNames.map((f) => f.toUpperCase());
+      const authorizedAliases = resolveDeptAliases(userDept).fullNames.map((f) => f.toUpperCase());
+      const matches = requestedAliases.some((alias) => authorizedAliases.includes(alias));
+      if (!matches) {
+        return res.status(403).json({ error: `Access denied. HOD is strictly restricted to ${userDept} department.` });
+      }
     }
+
+    const targetDept = isSuperAdmin
+      ? (departmentQuery && departmentQuery !== "All" && departmentQuery !== "All Departments" ? departmentQuery : null)
+      : userDept;
+
+    const whereConditions: any[] = [];
+    if (targetDept) {
+      const deptInfo = resolveDeptAliases(targetDept);
+      whereConditions.push({
+        OR: deptInfo.fullNames.map((name) => ({
+          department: { contains: name, mode: "insensitive" as const },
+        })),
+      });
+    }
+
+    const whereClause = whereConditions.length > 0 ? { AND: whereConditions } : {};
 
     const [allFaculty, allCourses] = await Promise.all([
       prisma.faculty.findMany({ where: whereClause }),
@@ -199,7 +290,14 @@ router.get("/stats", authenticateToken, async (req: AuthenticatedRequest, res: R
 });
 
 // POST /api/faculty & POST /api/employee: Create new faculty record in PostgreSQL
-router.post("/", authenticateToken, requireSuperAdmin, async (req: AuthenticatedRequest, res: Response) => {
+router.post("/", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const { isSuperAdmin, userDept } = await resolveAuthorizedFacultyScope(req);
+  const userRole = (req.userRole || "").toLowerCase();
+
+  if (!isSuperAdmin && userRole !== "hod") {
+    return res.status(403).json({ error: "Access denied. Only HOD or Super Admin can register new faculty." });
+  }
+
   const { fullName, name, email, department, designation, empId } = req.body;
 
   const facName = (fullName || name || "").trim();
@@ -208,6 +306,8 @@ router.post("/", authenticateToken, requireSuperAdmin, async (req: Authenticated
   if (!facName) {
     return res.status(400).json({ error: "Faculty name is required." });
   }
+
+  const targetDepartment = isSuperAdmin ? (department || "CSE") : userDept;
 
   try {
     const existing = await prisma.faculty.findFirst({
@@ -230,7 +330,7 @@ router.post("/", authenticateToken, requireSuperAdmin, async (req: Authenticated
         email: facEmail || `${facName.toLowerCase().replace(/\s+/g, ".")}@college.edu`,
         password: "password123",
         role: designation?.toLowerCase().includes("prof") ? "hod" : "faculty",
-        department: department || "CSE",
+        department: targetDepartment,
         status: "Active",
       },
     });
@@ -331,6 +431,9 @@ router.get("/live-status", authenticateToken, async (req: AuthenticatedRequest, 
   const search = (req.query.search as string || "").trim();
 
   try {
+    const { isSuperAdmin, userDept } = await resolveAuthorizedFacultyScope(req);
+    const filterDept = isSuperAdmin ? department : userDept;
+
     const timeSlot = getTimeSlotForPeriod(period);
     const whereClause: any = {};
 
@@ -355,7 +458,7 @@ router.get("/live-status", authenticateToken, async (req: AuthenticatedRequest, 
       prisma.course.findMany(),
     ]);
 
-    const faculties = allFaculties.filter((f) => isDeptMatch(f.department, department));
+    const faculties = allFaculties.filter((f) => isDeptMatch(f.department, filterDept));
 
     const result = faculties.map((f, idx) => {
       const dept = f.department || "CSE";

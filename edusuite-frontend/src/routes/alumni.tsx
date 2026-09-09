@@ -458,8 +458,13 @@ const SUCCESS_STORIES: SuccessStoryItem[] = [
 // ALUMNI PAGE COMPONENT
 // ============================================================================
 
+import { useRole } from "@/context/role-context";
+
 export function AlumniPage() {
   const location = useLocation();
+  const { role, flags, department: userDept, profile } = useRole();
+  const isHod = role === "hod" || flags?.includes("isHod");
+  const hodDept = userDept || (profile?.department as string) || "CSE";
 
   const searchObj = (location.search || {}) as Record<string, string | undefined>;
   const activeModule: AlumniTab = (searchObj["tab"] as AlumniTab) || "dashboard";
@@ -467,7 +472,7 @@ export function AlumniPage() {
   const [alumniList, setAlumniList] = useState<AlumniProfileItem[]>(INITIAL_ALUMNI_PROFILES);
   const [searchQuery, setSearchQuery] = useState("");
   const [batchFilter, setBatchFilter] = useState("All");
-  const [deptFilter, setDeptFilter] = useState("All");
+  const [deptFilter, setDeptFilter] = useState(isHod ? hodDept : "All");
 
   // Modals & Drawers State
   const [selectedProfile, setSelectedProfile] = useState<AlumniProfileItem | null>(null);
@@ -487,7 +492,7 @@ export function AlumniPage() {
   const [newAlumniForm, setNewAlumniForm] = useState({
     name: "",
     batch: "Batch of 2023",
-    dept: "Computer Science (CSE)",
+    dept: `Computer Science (${hodDept})`,
     company: "",
     designation: "",
     location: "Bengaluru, KA, India",
@@ -498,8 +503,8 @@ export function AlumniPage() {
     title: "",
     company: "Google Cloud India",
     location: "Bengaluru, KA",
-    ctcRange: "₹30 - ₹40 LPA",
-    expRequired: "2 - 5 Years",
+    ctcRange: "₹18 - ₹24 LPA",
+    expRequired: "2+ Years",
   });
 
   const [donationAmount, setDonationAmount] = useState("50000");
@@ -510,7 +515,9 @@ export function AlumniPage() {
       a.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
       a.designation.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesBatch = batchFilter === "All" || a.batch === batchFilter;
-    const matchesDept = deptFilter === "All" || a.dept.includes(deptFilter);
+    const matchesDept = isHod
+      ? a.dept.toUpperCase().includes(hodDept.toUpperCase())
+      : deptFilter === "All" || a.dept.includes(deptFilter);
     return matchesSearch && matchesBatch && matchesDept;
   });
 

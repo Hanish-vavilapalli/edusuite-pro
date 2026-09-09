@@ -4,6 +4,7 @@ import { ShieldAlert } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { useRole } from "@/context/role-context";
+import { normalizeRole } from "@/lib/roleResolver";
 
 export const Route = createFileRoute("/faculty")({
   head: () => ({
@@ -13,10 +14,24 @@ export const Route = createFileRoute("/faculty")({
 });
 
 function FacultyPage() {
-  const { role } = useRole();
-  const isSuperAdmin = role === "super-admin" || role === "super_admin";
+  const { role, flags } = useRole();
+  const norm = normalizeRole(role);
+  const isSuperAdmin = norm === "super_admin" || norm === "admin";
+  const isAuthorized =
+    isSuperAdmin ||
+    norm === "faculty" ||
+    norm === "hod" ||
+    norm === "dean" ||
+    norm === "principal" ||
+    norm === "vice_principal" ||
+    role === "staff" ||
+    role === "faculty" ||
+    flags.includes("isFaculty") ||
+    flags.includes("isMentor") ||
+    flags.includes("isClassAdvisor") ||
+    flags.includes("isHod");
 
-  if (role !== "staff" && !isSuperAdmin) {
+  if (!isAuthorized) {
     return (
       <div className="flex h-screen items-center justify-center p-4 bg-background">
         <div className="text-center max-w-md border border-destructive/20 bg-destructive/5 rounded-2xl p-6">

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useRole } from "@/context/role-context";
 import {
   CalendarRange,
   Sparkles,
@@ -74,9 +75,19 @@ export function TimetableModuleView({
   initialSec = "Section A",
   isStudentView = false,
 }: TimetableModuleViewProps = {}) {
-  const [selectedBranch, setSelectedBranch] = useState(initialBranch);
+  const { role, flags, department: userDept, profile } = useRole();
+  const isHod = role === "hod" || flags?.includes("isHod");
+  const hodDept = userDept || (profile?.department as string) || "CSE";
+
+  const [selectedBranch, setSelectedBranch] = useState(isHod ? hodDept : initialBranch);
   const [selectedSem, setSelectedSem] = useState<number>(initialSem);
   const [selectedSec, setSelectedSec] = useState(initialSec);
+
+  useEffect(() => {
+    if (isHod && hodDept) {
+      setSelectedBranch(hodDept);
+    }
+  }, [isHod, hodDept]);
 
   const [viewMode, setViewMode] = useState<"grid" | "faculty" | "room">("grid");
   const [selectedFacultyFilter, setSelectedFacultyFilter] = useState("Dr. K. Sai Teja");
@@ -208,15 +219,17 @@ export function TimetableModuleView({
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-2xl font-bold font-display tracking-tight text-foreground">
-                {isStudentView ? "Student Class Timetable & Schedule" : "Automated Timetable Management & Generator"}
+                {isStudentView ? "Student Class Timetable & Schedule" : isHod ? `${selectedBranch} Department Timetable` : "Automated Timetable Management & Generator"}
               </h1>
               <Badge variant="outline" className="font-mono text-xs text-primary border-primary/30">
-                {isStudentView ? `${selectedBranch} • Sem ${selectedSem} (${selectedSec})` : "All 4 Running Semesters"}
+                {isStudentView ? `${selectedBranch} • Sem ${selectedSem} (${selectedSec})` : isHod ? `${selectedBranch} Department • Sem ${selectedSem}` : "All 4 Running Semesters"}
               </Badge>
             </div>
             <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
               {isStudentView
                 ? `Official weekly class schedule for ${selectedBranch} Department - Semester ${selectedSem} (${selectedSec}).`
+                : isHod
+                ? `Official weekly class schedule for ${selectedBranch} Department.`
                 : "Conflict-free weekly schedule generator across CSE, ECE, ME, CE, EEE, IT & AI&DS branches."}
             </p>
           </div>
@@ -255,16 +268,18 @@ export function TimetableModuleView({
       {!isStudentView && (
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 p-4 rounded-2xl bg-card border border-border/80 shadow-sm">
           <div className="flex flex-wrap items-center gap-3">
-            {/* Branch Dropdown */}
-            <div className="space-y-1">
-              <label className="text-[0.68rem] font-bold text-muted-foreground uppercase tracking-wider block">Academic Branch</label>
-              <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                <SelectTrigger className="h-9 text-xs font-bold w-[140px] rounded-xl"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {BRANCHES.map((b) => (<SelectItem key={b} value={b} className="text-xs font-bold">{b} Department</SelectItem>))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Branch Dropdown — Hidden for HOD since department scope is fixed */}
+            {!isHod && (
+              <div className="space-y-1">
+                <label className="text-[0.68rem] font-bold text-muted-foreground uppercase tracking-wider block">Academic Branch</label>
+                <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                  <SelectTrigger className="h-9 text-xs font-bold w-[140px] rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {BRANCHES.map((b) => (<SelectItem key={b} value={b} className="text-xs font-bold">{b} Department</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Semester Dropdown */}
             <div className="space-y-1">
