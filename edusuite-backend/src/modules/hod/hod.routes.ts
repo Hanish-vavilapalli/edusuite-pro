@@ -502,5 +502,160 @@ router.get("/dashboard-stats", authenticateToken, async (req: AuthenticatedReque
   }
 });
 
-export default router;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// HOD PLACEMENT ENDPOINTS — all department-scoped via JWT, never client params
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function resolveHodDepartment(req: AuthenticatedRequest): Promise<string | null> {
+  const role = (req.userRole || "").toLowerCase();
+  if (role === "super_admin" || role === "superadmin") {
+    return (req.query.department as string) || null;
+  }
+  let dept = req.userDepartment || null;
+  if (!dept && req.userId) {
+    const fac = await prisma.faculty.findUnique({ where: { id: req.userId }, select: { department: true } });
+    dept = fac?.department || null;
+  }
+  return dept;
+}
+
+function blockCrossDeptQuery(req: AuthenticatedRequest, hodDept: string, res: Response): boolean {
+  const isSA = (req.userRole || "").toLowerCase().includes("super_admin") || (req.userRole || "").toLowerCase().includes("superadmin");
+  if (!isSA && req.query.department) {
+    if ((req.query.department as string).trim().toUpperCase() !== hodDept.trim().toUpperCase()) {
+      res.status(403).json({ error: "Access denied. HOD is restricted strictly to their own department scope." });
+      return true;
+    }
+  }
+  return false;
+}
+
+// GET /api/hod/placements/stats
+router.get("/placements/stats", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const isSA = (req.userRole || "").toLowerCase().includes("super_admin") || (req.userRole || "").toLowerCase().includes("superadmin");
+    const hodDept = await resolveHodDepartment(req);
+    if (!hodDept && !isSA) return res.status(403).json({ error: "Access denied. HOD has no department assigned. Contact your administrator." });
+    if (hodDept && blockCrossDeptQuery(req, hodDept, res)) return;
+    const deptInfo = hodDept ? resolveDeptAliases(hodDept) : null;
+    const deptConds = deptInfo ? deptInfo.fullNames.map((n) => ({ department: { equals: n, mode: "insensitive" as const } })) : undefined;
+    const sw = deptConds ? { OR: deptConds } : {};
+    const totalStudents = await prisma.student.count({ where: sw });
+    const placedIds = await prisma.placementRecord.findMany({ where: { student: sw as any }, select: { studentId: true }, distinct: ["studentId"] });
+    const placedCount = placedIds.length;
+    // Placement rate = placedStudents / totalStudents * 100 (all students are considered placement-eligible)
+    const placementRate = totalStudents > 0 ? Math.round((placedCount / totalStudents) * 1000) / 10 : 0;
+    const highestRec = await prisma.placementRecord.findFirst({ where: { student: sw as any }, orderBy: { ctcLpa: "desc" }, select: { ctcLpa: true, companyName: true } });
+    const avgAgg = await prisma.placementRecord.aggregate({ where: { student: sw as any }, _avg: { ctcLpa: true } });
+    const averageCtc = avgAgg._avg.ctcLpa !== null ? Math.round(avgAgg._avg.ctcLpa * 10) / 10 : null;
+    const allRecs = await prisma.placementRecord.findMany({ where: { student: sw as any }, select: { companyName: true } });
+    const recruiterCount = new Set(allRecs.map((r) => r.companyName.toLowerCase().trim())).size;
+    return res.json({
+      department: deptInfo?.code || "ALL",
+      departmentName: deptInfo?.fullNames[deptInfo.fullNames.length - 1] || "All Departments",
+      totalStudents, placedCount, placementRate,
+      highestCtc: highestRec?.ctcLpa ?? null, highestCtcCompany: highestRec?.companyName ?? null,
+      averageCtc, recruiterCount,
+    });
+  } catch (error: any) {
+    console.error("GET /api/hod/placements/stats error:", error);
+    return res.status(500).json({ error: error.message || "Failed to fetch placement stats." });
+  }
+});
+
+// GET /api/hod/placements/drives
+router.get("/placements/drives", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const isSA = (req.userRole || "").toLowerCase().includes("super_admin") || (req.userRole || "").toLowerCase().includes("superadmin");
+    const hodDept = await resolveHodDepartment(req);
+    if (!hodDept && !isSA) return res.status(403).json({ error: "Access denied. HOD has no department assigned." });
+    if (hodDept && blockCrossDeptQuery(req, hodDept, res)) return;
+    const deptInfo = hodDept ? resolveDeptAliases(hodDept) : null;
+    const search = ((req.query.search as string) || "").toLowerCase();
+    let drives: any[] = [];
+    if (deptInfo) {
+      const allDrives = await prisma.placementDrive.findMany({ orderBy: { driveDate: "desc" } });
+      const codes = [deptInfo.code, ...deptInfo.fullNames].map((s) => s.toLowerCase());
+      drives = allDrives.filter((d) => { if (!d.eligibleDepts) return false; const e = d.eligibleDepts.toLowerCase(); return e.includes("all") || codes.some((c) => e.includes(c)); });
+      const recDrives = await prisma.placementRecord.findMany({ where: { driveId: { not: null }, student: { OR: deptInfo.fullNames.map((n) => ({ department: { equals: n, mode: "insensitive" as const } })) } }, select: { driveId: true }, distinct: ["driveId"] });
+      const seen = new Set(drives.map((d) => d.id));
+      for (const { driveId } of recDrives) { if (driveId && !seen.has(driveId)) { const d = await prisma.placementDrive.findUnique({ where: { id: driveId } }); if (d) drives.push(d); } }
+    } else { drives = await prisma.placementDrive.findMany({ orderBy: { driveDate: "desc" } }); }
+    if (search) drives = drives.filter((d) => d.companyName.toLowerCase().includes(search) || d.jobRole.toLowerCase().includes(search) || (d.location || "").toLowerCase().includes(search));
+    return res.json(drives);
+  } catch (error: any) {
+    console.error("GET /api/hod/placements/drives error:", error);
+    return res.status(500).json({ error: error.message || "Failed to fetch placement drives." });
+  }
+});
+
+// GET /api/hod/placements/placed-students
+router.get("/placements/placed-students", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const isSA = (req.userRole || "").toLowerCase().includes("super_admin") || (req.userRole || "").toLowerCase().includes("superadmin");
+    const hodDept = await resolveHodDepartment(req);
+    if (!hodDept && !isSA) return res.status(403).json({ error: "Access denied. HOD has no department assigned." });
+    if (hodDept && blockCrossDeptQuery(req, hodDept, res)) return;
+    const deptInfo = hodDept ? resolveDeptAliases(hodDept) : null;
+    const search = (req.query.search as string) || "";
+    const deptConds = deptInfo ? deptInfo.fullNames.map((n) => ({ department: { equals: n, mode: "insensitive" as const } })) : undefined;
+    const sw = deptConds ? { OR: deptConds } : {};
+    const records = await prisma.placementRecord.findMany({
+      where: { student: sw as any, ...(search ? { OR: [{ student: { name: { contains: search, mode: "insensitive" } } }, { student: { rollNumber: { contains: search, mode: "insensitive" } } }, { companyName: { contains: search, mode: "insensitive" } }, { jobRole: { contains: search, mode: "insensitive" } }] } : {}) },
+      include: { student: { select: { id: true, rollNumber: true, name: true, department: true, semester: true, year: true } }, drive: { select: { id: true, driveDate: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+    return res.json(records.map((r) => ({ id: r.id, rollNo: r.student.rollNumber, studentName: r.student.name, department: r.student.department || hodDept || "", semester: r.student.semester, companyName: r.companyName, jobRole: r.jobRole, ctcLpa: r.ctcLpa, offerLetterStatus: r.offerLetterStatus, offerDate: r.offerDate, driveId: r.drive?.id || null, driveDate: r.drive?.driveDate || null, remarks: r.remarks })));
+  } catch (error: any) {
+    console.error("GET /api/hod/placements/placed-students error:", error);
+    return res.status(500).json({ error: error.message || "Failed to fetch placed students." });
+  }
+});
+
+// POST /api/hod/placements/record
+router.post("/placements/record", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const isSA = (req.userRole || "").toLowerCase().includes("super_admin") || (req.userRole || "").toLowerCase().includes("superadmin");
+    const hodDept = await resolveHodDepartment(req);
+    if (!hodDept && !isSA) return res.status(403).json({ error: "Access denied. HOD has no department assigned." });
+    const { studentId, rollNo, companyName, jobRole, ctcLpa, offerDate, offerLetterStatus, driveId, remarks } = req.body;
+    if (!companyName || !jobRole) return res.status(400).json({ error: "companyName and jobRole are required." });
+    let student: any = null;
+    if (studentId) student = await prisma.student.findUnique({ where: { id: studentId } });
+    else if (rollNo) student = await prisma.student.findUnique({ where: { rollNumber: String(rollNo).toUpperCase() } });
+    if (!student) return res.status(404).json({ error: "Student not found. Provide a valid studentId or rollNo." });
+    if (hodDept && !isSA) {
+      const di = resolveDeptAliases(hodDept);
+      const sd = (student.department || "").toLowerCase().trim();
+      if (!di.fullNames.some((n) => n.toLowerCase() === sd) && di.code.toLowerCase() !== sd) return res.status(403).json({ error: `Access denied. Student ${student.rollNumber} does not belong to your department (${di.code}).` });
+    }
+    if (driveId) { const drive = await prisma.placementDrive.findUnique({ where: { id: driveId } }); if (!drive) return res.status(400).json({ error: "Invalid driveId." }); }
+    const record = await prisma.placementRecord.create({ data: { studentId: student.id, companyName: companyName.trim(), jobRole: jobRole.trim(), ctcLpa: Number(ctcLpa) || 0, offerDate: offerDate || null, offerLetterStatus: offerLetterStatus || "Issued", driveId: driveId || null, remarks: remarks || null }, include: { student: { select: { rollNumber: true, name: true, department: true } } } });
+    try { await prisma.auditLog.create({ data: { actorId: req.userId, actorName: "HOD", actorRole: req.userRole || "hod", action: "CREATE_PLACEMENT_RECORD", module: "Placements", targetEntity: `PlacementRecord:${record.id}`, targetId: record.id, status: "Success" } }); } catch (_) {}
+    return res.status(201).json({ id: record.id, rollNo: record.student.rollNumber, studentName: record.student.name, department: record.student.department, companyName: record.companyName, jobRole: record.jobRole, ctcLpa: record.ctcLpa, offerLetterStatus: record.offerLetterStatus, offerDate: record.offerDate });
+  } catch (error: any) {
+    console.error("POST /api/hod/placements/record error:", error);
+    return res.status(500).json({ error: error.message || "Failed to create placement record." });
+  }
+});
+
+// POST /api/hod/placements/drives
+router.post("/placements/drives", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const isSA = (req.userRole || "").toLowerCase().includes("super_admin") || (req.userRole || "").toLowerCase().includes("superadmin");
+    const hodDept = await resolveHodDepartment(req);
+    if (!hodDept && !isSA) return res.status(403).json({ error: "Access denied. HOD has no department assigned." });
+    const { companyName, jobRole, ctcLpa, driveDate, location, eligibleDepts, status } = req.body;
+    if (!companyName || !jobRole) return res.status(400).json({ error: "companyName and jobRole are required." });
+    // HOD cannot set eligibleDepts to other depts — locked to their own dept
+    const finalDepts = isSA ? (eligibleDepts || "ALL") : resolveDeptAliases(hodDept!).code;
+    const drive = await prisma.placementDrive.create({ data: { companyName: companyName.trim(), jobRole: jobRole.trim(), ctcLpa: Number(ctcLpa) || 0, driveDate: driveDate || new Date().toISOString().split("T")[0], location: location || null, eligibleDepts: finalDepts, status: status || "Upcoming" } });
+    try { await prisma.auditLog.create({ data: { actorId: req.userId, actorName: "HOD", actorRole: req.userRole || "hod", action: "CREATE_PLACEMENT_DRIVE", module: "Placements", targetEntity: `PlacementDrive:${drive.id}`, targetId: drive.id, status: "Success" } }); } catch (_) {}
+    return res.status(201).json(drive);
+  } catch (error: any) {
+    console.error("POST /api/hod/placements/drives error:", error);
+    return res.status(500).json({ error: error.message || "Failed to create placement drive." });
+  }
+});
+export default router;

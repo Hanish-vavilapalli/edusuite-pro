@@ -1,13 +1,15 @@
 import api from "@/lib/api";
 
+// ─── Shared Types ───────────────────────────────────────────────────────────
+
 export interface PlacementDrive {
   id: string;
   companyName: string;
   jobRole: string;
   ctcLpa: number;
-  eligibleDepts: string[];
+  eligibleDepts: string | null;
   driveDate: string;
-  location: string;
+  location: string | null;
   totalApplicants: number;
   selectedCount: number;
   status: "Upcoming" | "Ongoing" | "Completed";
@@ -18,122 +20,112 @@ export interface PlacedStudent {
   rollNo: string;
   studentName: string;
   department: string;
+  semester: number | null;
   companyName: string;
   jobRole: string;
   ctcLpa: number;
   offerLetterStatus: "Issued" | "Pending Verification" | "Accepted";
+  offerDate: string | null;
+  driveId: string | null;
+  driveDate: string | null;
+  remarks: string | null;
 }
 
-export const INITIAL_DRIVES: PlacementDrive[] = [
-  {
-    id: "DRV-101",
-    companyName: "Google India",
-    jobRole: "Software Development Engineer (SDE-1)",
-    ctcLpa: 32.5,
-    eligibleDepts: ["CSE", "ECE", "AI&DS"],
-    driveDate: "2026-08-12",
-    location: "Campus Auditorium & Virtual",
-    totalApplicants: 180,
-    selectedCount: 8,
-    status: "Upcoming",
-  },
-  {
-    id: "DRV-102",
-    companyName: "Microsoft Corp",
-    jobRole: "Cloud Solution Architect & AI Engineer",
-    ctcLpa: 45.0,
-    eligibleDepts: ["CSE", "AI&DS"],
-    driveDate: "2026-08-18",
-    location: "Innovation Hub",
-    totalApplicants: 140,
-    selectedCount: 5,
-    status: "Upcoming",
-  },
-  {
-    id: "DRV-103",
-    companyName: "TCS Digital / Ninja",
-    jobRole: "Systems Engineer & Systems Specialist",
-    ctcLpa: 9.0,
-    eligibleDepts: ["CSE", "ECE", "ME", "AI&DS", "Biotech"],
-    driveDate: "2026-07-28",
-    location: "Campus On-line Labs",
-    totalApplicants: 420,
-    selectedCount: 85,
-    status: "Completed",
-  },
-];
+export interface PlacementStats {
+  department: string;
+  departmentName: string;
+  totalStudents: number;
+  placedCount: number;
+  /** placedStudents / totalStudents * 100 — all dept students are placement-eligible */
+  placementRate: number;
+  highestCtc: number | null;
+  highestCtcCompany: string | null;
+  averageCtc: number | null;
+  recruiterCount: number;
+}
 
-export const INITIAL_PLACED: PlacedStudent[] = [
-  {
-    id: "PL-501",
-    rollNo: "22CSE001",
-    studentName: "Aarav Sharma",
-    department: "CSE",
-    companyName: "Microsoft Corp",
-    jobRole: "Cloud Solution Architect",
-    ctcLpa: 45.0,
-    offerLetterStatus: "Issued",
-  },
-  {
-    id: "PL-502",
-    rollNo: "22ECE042",
-    studentName: "Ananya Iyer",
-    department: "ECE",
-    companyName: "Texas Instruments",
-    jobRole: "VLSI Hardware Engineer",
-    ctcLpa: 28.0,
-    offerLetterStatus: "Accepted",
-  },
-];
+// ─── API Functions ───────────────────────────────────────────────────────────
+// All endpoints are HOD-scoped on the backend. Department comes from JWT — never trusted from frontend.
 
-export async function fetchPlacementDrives(): Promise<PlacementDrive[]> {
+/**
+ * Fetch department-scoped placement KPI stats from backend.
+ * Returns null on error — caller shows empty/error state, NEVER mock data.
+ */
+export async function fetchHodPlacementStats(): Promise<PlacementStats | null> {
   try {
-    const res = await api.get("/api/placement/drives");
-    if (res && Array.isArray(res.data) && res.data.length > 0) return res.data;
-  } catch {}
-  return INITIAL_DRIVES;
+    const res = await api.get<PlacementStats>("/api/hod/placements/stats");
+    if (res.status === 200 && res.data) return res.data;
+    if (res.status === 403) {
+      console.warn("[PlacementService] 403 from /api/hod/placements/stats — HOD has no dept assigned.");
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
-export async function fetchPlacedStudents(): Promise<PlacedStudent[]> {
+/**
+ * Fetch placement drives relevant to HOD's department.
+ * Returns [] if none exist or on error.
+ */
+export async function fetchPlacementDrives(search?: string): Promise<PlacementDrive[]> {
   try {
-    const res = await api.get("/api/placement/placed-students");
-    if (res && Array.isArray(res.data) && res.data.length > 0) return res.data;
-  } catch {}
-  return INITIAL_PLACED;
+    const res = await api.get<PlacementDrive[]>("/api/hod/placements/drives", {
+      params: search ? { search } : undefined,
+    });
+    if (res.status === 200 && Array.isArray(res.data)) return res.data;
+    return [];
+  } catch {
+    return [];
+  }
 }
 
+/**
+ * Fetch placed students in HOD's department only.
+ * Returns [] if none exist or on error.
+ */
+export async function fetchPlacedStudents(search?: string): Promise<PlacedStudent[]> {
+  try {
+    const res = await api.get<PlacedStudent[]>("/api/hod/placements/placed-students", {
+      params: search ? { search } : undefined,
+    });
+    if (res.status === 200 && Array.isArray(res.data)) return res.data;
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Create a new placement record for a student in HOD's dept.
+ * Backend verifies student belongs to HOD's department — cross-dept submissions are rejected with 403.
+ * Throws on failure so the caller can show an error toast.
+ */
+export async function addPlacedStudentOffer(data: {
+  rollNo?: string;
+  studentId?: string;
+  companyName: string;
+  jobRole: string;
+  ctcLpa?: number;
+  offerDate?: string;
+  offerLetterStatus?: string;
+  driveId?: string;
+  remarks?: string;
+}): Promise<PlacedStudent> {
+  const res = await api.post<PlacedStudent>("/api/hod/placements/record", data);
+  if (res.status === 201 && res.data) return res.data;
+  const errMsg = (res.data as any)?.error || "Failed to add placement offer.";
+  throw new Error(errMsg);
+}
+
+/**
+ * Schedule a new placement drive for HOD's department.
+ * Backend locks eligibleDepts to HOD's own dept — cannot schedule for other depts.
+ * Throws on failure so the caller can show an error toast.
+ */
 export async function createPlacementDrive(data: Partial<PlacementDrive>): Promise<PlacementDrive> {
-  try {
-    const res = await api.post("/api/placement/drives", data);
-    if (res && res.data && res.data.id) return res.data;
-  } catch {}
-  return {
-    id: `DRV-${Math.floor(104 + Math.random() * 900)}`,
-    companyName: data.companyName || "Amazon Web Services",
-    jobRole: data.jobRole || "Cloud Systems Engineer",
-    ctcLpa: Number(data.ctcLpa) || 18.0,
-    eligibleDepts: data.eligibleDepts || ["CSE", "ECE", "AI&DS"],
-    driveDate: data.driveDate || "2026-08-25",
-    location: data.location || "Campus Placement Block",
-    totalApplicants: 120,
-    selectedCount: 0,
-    status: "Upcoming",
-  };
-}
-
-export async function addPlacedStudentOffer(data: Partial<PlacedStudent>): Promise<PlacedStudent> {
-  try {
-    const res = await api.post("/api/placement/placed-students", data);
-    if (res && res.data && res.data.id) return res.data;
-  } catch {}
-  return {
-    id: `PL-${Math.floor(503 + Math.random() * 900)}`,
-    rollNo: data.rollNo || "22AIDS012",
-    studentName: data.studentName || "Rohan Varma",
-    department: data.department || "AI&DS",
-    companyName: data.companyName || "Google India",
-    jobRole: data.jobRole || "SDE-1",
-    ctcLpa: Number(data.ctcLpa) || 32.5,
-    offerLetterStatus: "Issued",
-  };
+  const res = await api.post<PlacementDrive>("/api/hod/placements/drives", data);
+  if (res.status === 201 && res.data) return res.data;
+  const errMsg = (res.data as any)?.error || "Failed to schedule placement drive.";
+  throw new Error(errMsg);
 }

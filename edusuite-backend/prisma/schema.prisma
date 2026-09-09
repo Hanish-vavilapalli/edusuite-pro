@@ -30,6 +30,7 @@ model Student {
   nptelRecords        NptelRecord[]
   attendanceRecords   AttendanceRecord[]
   notifications       Notification[]
+  placementRecords    PlacementRecord[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 
@@ -1412,4 +1413,45 @@ model HostelRegistration {
   agreeTerms              Boolean   @default(true)
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
+}
+
+/// Campus placement / recruitment drive.
+/// eligibleDepts is comma-separated dept codes, e.g. "CSE,ECE,AI&DS" or "ALL".
+model PlacementDrive {
+  id               String            @id @default(uuid())
+  companyName      String
+  jobRole          String
+  ctcLpa           Float             @default(0)
+  driveDate        String            // ISO date YYYY-MM-DD
+  location         String?
+  eligibleDepts    String?           // Comma-separated: "CSE,ECE" or "ALL"
+  status           String            @default("Upcoming") // "Upcoming" | "Ongoing" | "Completed"
+  totalApplicants  Int               @default(0)
+  selectedCount    Int               @default(0)
+  placementRecords PlacementRecord[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([status])
+}
+
+/// Confirmed placement offer for a specific student.
+/// Department scope is enforced via student.department — never hardcoded.
+model PlacementRecord {
+  id                String          @id @default(uuid())
+  studentId         String
+  student           Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  companyName       String
+  jobRole           String
+  ctcLpa            Float           @default(0)
+  offerDate         String?         // ISO date YYYY-MM-DD
+  offerLetterStatus String          @default("Issued") // "Issued" | "Accepted" | "Pending Verification"
+  driveId           String?
+  drive             PlacementDrive? @relation(fields: [driveId], references: [id], onDelete: SetNull)
+  remarks           String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([studentId])
+  @@index([driveId])
 }
