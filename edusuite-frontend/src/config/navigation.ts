@@ -12,7 +12,6 @@ import {
   FileSpreadsheet,
   Award,
   Library,
-  BedDouble,
   Bus,
   Wallet,
   Briefcase,
@@ -43,18 +42,8 @@ import {
   ShieldCheck,
   FileCheck,
   Sparkles,
-  Clock,
   Ticket,
   MessageCircle,
-  LogOut,
-  LayoutGrid,
-  DoorClosed,
-  PersonStanding,
-  Wrench,
-  FileClock,
-  IdCard,
-  Ban,
-  MonitorSmartphone,
   type LucideIcon,
 } from "lucide-react";
 
@@ -327,12 +316,6 @@ function resolveUrlForUser(url: string, user: UserPermissionContext, title?: str
       if (title === "Routes") return "/transport/routes";
       if (title === "Buses" || title === "Vehicles") return "/transport/buses";
     }
-    if (flags.includes("isHostelWarden")) {
-      if (url === "/dashboard" || url === "/hostel") return "/hostel/dashboard";
-      if (url === "/settings") return "/faculty/profile";
-      if (title === "Rooms" || title === "Allotment") return "/hostel/rooms";
-      if (title === "Students") return "/hostel/students";
-    }
     if (flags.includes("isHRManager")) {
       if (url === "/dashboard" || url === "/hr") return "/hr/dashboard";
       if (url === "/settings") return "/faculty/profile";
@@ -459,30 +442,10 @@ export const SUPER_ADMIN_NAVIGATION: NavSection[] = [
   },
 ];
 
-export const HOSTEL_WARDEN_NAVIGATION: NavSection[] = [
-  {
-    label: "Hostel Management",
-    items: [
-      { title: "Dashboard", url: "/hostel/dashboard", icon: LayoutDashboard },
-      { title: "Block Management", url: "/hostel/blocks", icon: LayoutGrid },
-      { title: "Room Allocation", url: "/hostel/room-allocation", icon: DoorClosed },
-      { title: "Mess Management", url: "/hostel/mess-management", icon: Ticket },
-      { title: "Outing Approvals", url: "/hostel/outing-approvals", icon: PersonStanding },
-      { title: "Maintenance", url: "/hostel/maintenance", icon: Wrench },
-      { title: "Log History", url: "/hostel/log-history", icon: ClipboardList },
-      { title: "User Management", url: "/hostel/user-management", icon: Users },
-      { title: "Guest Billing", url: "/hostel/guest-billing", icon: IdCard },
-      { title: "Leaves & Suspension", url: "/hostel/leaves-suspension", icon: Ban },
-      { title: "Device Management", url: "/hostel/device-management", icon: MonitorSmartphone },
-      { title: "Notifications", url: "/hostel/notifications", icon: Bell },
-    ],
-  },
-];
 
 export function navigationForUser(user: UserPermissionContext, currentPath?: string): NavSection[] {
   // Path-based Dean portfolio navigation matching (guarantees ONLY that dean's sidebar is shown)
   if (currentPath) {
-    if (currentPath.startsWith("/hostel")) return HOSTEL_WARDEN_NAVIGATION;
     if (currentPath.startsWith("/librarian")) return LIBRARIAN_NAVIGATION;
     if (currentPath.startsWith("/transport")) return TRANSPORT_NAVIGATION;
     if (currentPath.startsWith("/staff/academic-dean")) return ACADEMIC_DEAN_NAVIGATION;
@@ -579,15 +542,11 @@ export function navigationForUser(user: UserPermissionContext, currentPath?: str
     return RECRUITER_NAVIGATION;
   }
 
-  // Hostel Warden / Hostel Portal specific navigation
-  if (currentPath?.startsWith("/hostel") || user.flags.includes("isHostelWarden") || user.flags.includes("1sHostolWar") || (user.role as any) === "warden") {
-    return HOSTEL_WARDEN_NAVIGATION;
-  }
 
   // Check if staff has administrative flags
   const isAdminStaff = user.flags.some(flag => 
     ["isHod", "isDean", "isExamController", "isPlacementOfficer", "isLibraryAdmin", 
-     "isTransportOfficer", "isHostelWarden", "1sHostolWar", "isHRManager", "isFinanceOfficer"].includes(flag)
+     "isTransportOfficer", "isHRManager", "isFinanceOfficer"].includes(flag)
   );
 
   if (user.role === "staff" && !isAdminStaff && !user.flags.includes("isExamAssistant")) {

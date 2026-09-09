@@ -211,8 +211,6 @@ import { Route as StaffStudentDeanRouteImport } from './routes/staff.student-dea
 import { Route as StaffStudent_deanRouteImport } from './routes/staff.student_dean'
 import { Route as StudentIndexRouteImport } from './routes/student.index'
 import { Route as StudentAttendanceRouteImport } from './routes/student.attendance'
-import { Route as StudentBiometricRouteImport } from './routes/student.biometric'
-import { Route as StudentComplaintsRouteImport } from './routes/student.complaints'
 import { Route as StudentCoursesRouteImport } from './routes/student.courses'
 import { Route as StudentDashboardRouteImport } from './routes/student.dashboard'
 import { Route as StudentDiscussionForumRouteImport } from './routes/student.discussion-forum'
@@ -220,16 +218,10 @@ import { Route as StudentExaminationsRouteImport } from './routes/student.examin
 import { Route as StudentFeedbackRouteImport } from './routes/student.feedback'
 import { Route as StudentFinanceRouteImport } from './routes/student.finance'
 import { Route as StudentIdCardRouteImport } from './routes/student.id-card'
-import { Route as StudentLeavesRouteImport } from './routes/student.leaves'
 import { Route as StudentLibraryRouteImport } from './routes/student.library'
 import { Route as StudentLmsRouteImport } from './routes/student.lms'
-import { Route as StudentLoginRouteImport } from './routes/student.login'
-import { Route as StudentMessRouteImport } from './routes/student.mess'
-import { Route as StudentNotificationsRouteImport } from './routes/student.notifications'
-import { Route as StudentOutingsRouteImport } from './routes/student.outings'
 import { Route as StudentProfileRouteImport } from './routes/student.profile'
 import { Route as StudentResultsRouteImport } from './routes/student.results'
-import { Route as StudentRoomRouteImport } from './routes/student.room'
 import { Route as StudentTimetableRouteImport } from './routes/student.timetable'
 import { Route as StudentUpdatesRouteImport } from './routes/student.updates'
 import { Route as StudentWebinarsRouteImport } from './routes/student.webinars'
@@ -1671,16 +1663,6 @@ const StudentAttendanceRoute = StudentAttendanceRouteImport.update({
   path: '/attendance',
   getParentRoute: () => StudentRoute,
 } as any)
-const StudentBiometricRoute = StudentBiometricRouteImport.update({
-  id: '/biometric',
-  path: '/biometric',
-  getParentRoute: () => StudentRoute,
-} as any)
-const StudentComplaintsRoute = StudentComplaintsRouteImport.update({
-  id: '/complaints',
-  path: '/complaints',
-  getParentRoute: () => StudentRoute,
-} as any)
 const StudentCoursesRoute = StudentCoursesRouteImport.update({
   id: '/courses',
   path: '/courses',
@@ -1716,11 +1698,6 @@ const StudentIdCardRoute = StudentIdCardRouteImport.update({
   path: '/id-card',
   getParentRoute: () => StudentRoute,
 } as any)
-const StudentLeavesRoute = StudentLeavesRouteImport.update({
-  id: '/leaves',
-  path: '/leaves',
-  getParentRoute: () => StudentRoute,
-} as any)
 const StudentLibraryRoute = StudentLibraryRouteImport.update({
   id: '/library',
   path: '/library',
@@ -1731,26 +1708,6 @@ const StudentLmsRoute = StudentLmsRouteImport.update({
   path: '/lms',
   getParentRoute: () => StudentRoute,
 } as any)
-const StudentLoginRoute = StudentLoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => StudentRoute,
-} as any)
-const StudentMessRoute = StudentMessRouteImport.update({
-  id: '/mess',
-  path: '/mess',
-  getParentRoute: () => StudentRoute,
-} as any)
-const StudentNotificationsRoute = StudentNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => StudentRoute,
-} as any)
-const StudentOutingsRoute = StudentOutingsRouteImport.update({
-  id: '/outings',
-  path: '/outings',
-  getParentRoute: () => StudentRoute,
-} as any)
 const StudentProfileRoute = StudentProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -1759,11 +1716,6 @@ const StudentProfileRoute = StudentProfileRouteImport.update({
 const StudentResultsRoute = StudentResultsRouteImport.update({
   id: '/results',
   path: '/results',
-  getParentRoute: () => StudentRoute,
-} as any)
-const StudentRoomRoute = StudentRoomRouteImport.update({
-  id: '/room',
-  path: '/room',
   getParentRoute: () => StudentRoute,
 } as any)
 const StudentTimetableRoute = StudentTimetableRouteImport.update({
@@ -4359,8 +4311,6 @@ export interface FileRoutesByFullPath {
   '/staff/student-dean': typeof StaffStudentDeanRouteWithChildren
   '/staff/student_dean': typeof StaffStudent_deanRouteWithChildren
   '/student/attendance': typeof StudentAttendanceRoute
-  '/student/biometric': typeof StudentBiometricRoute
-  '/student/complaints': typeof StudentComplaintsRoute
   '/student/courses': typeof StudentCoursesRoute
   '/student/dashboard': typeof StudentDashboardRoute
   '/student/discussion-forum': typeof StudentDiscussionForumRoute
@@ -4368,16 +4318,10 @@ export interface FileRoutesByFullPath {
   '/student/feedback': typeof StudentFeedbackRoute
   '/student/finance': typeof StudentFinanceRoute
   '/student/id-card': typeof StudentIdCardRoute
-  '/student/leaves': typeof StudentLeavesRoute
   '/student/library': typeof StudentLibraryRoute
   '/student/lms': typeof StudentLmsRoute
-  '/student/login': typeof StudentLoginRoute
-  '/student/mess': typeof StudentMessRoute
-  '/student/notifications': typeof StudentNotificationsRoute
-  '/student/outings': typeof StudentOutingsRoute
   '/student/profile': typeof StudentProfileRoute
   '/student/results': typeof StudentResultsRoute
-  '/student/room': typeof StudentRoomRoute
   '/student/timetable': typeof StudentTimetableRoute
   '/student/updates': typeof StudentUpdatesRoute
   '/student/webinars': typeof StudentWebinarsRoute
@@ -4973,8 +4917,6 @@ export interface FileRoutesByTo {
   '/placement/students': typeof PlacementStudentsRoute
   '/staff/student_dean': typeof StaffStudent_deanRouteWithChildren
   '/student/attendance': typeof StudentAttendanceRoute
-  '/student/biometric': typeof StudentBiometricRoute
-  '/student/complaints': typeof StudentComplaintsRoute
   '/student/courses': typeof StudentCoursesRoute
   '/student/dashboard': typeof StudentDashboardRoute
   '/student/discussion-forum': typeof StudentDiscussionForumRoute
@@ -4982,16 +4924,10 @@ export interface FileRoutesByTo {
   '/student/feedback': typeof StudentFeedbackRoute
   '/student/finance': typeof StudentFinanceRoute
   '/student/id-card': typeof StudentIdCardRoute
-  '/student/leaves': typeof StudentLeavesRoute
   '/student/library': typeof StudentLibraryRoute
   '/student/lms': typeof StudentLmsRoute
-  '/student/login': typeof StudentLoginRoute
-  '/student/mess': typeof StudentMessRoute
-  '/student/notifications': typeof StudentNotificationsRoute
-  '/student/outings': typeof StudentOutingsRoute
   '/student/profile': typeof StudentProfileRoute
   '/student/results': typeof StudentResultsRoute
-  '/student/room': typeof StudentRoomRoute
   '/student/timetable': typeof StudentTimetableRoute
   '/student/updates': typeof StudentUpdatesRoute
   '/student/webinars': typeof StudentWebinarsRoute
@@ -5616,8 +5552,6 @@ export interface FileRoutesById {
   '/staff/student-dean': typeof StaffStudentDeanRouteWithChildren
   '/staff/student_dean': typeof StaffStudent_deanRouteWithChildren
   '/student/attendance': typeof StudentAttendanceRoute
-  '/student/biometric': typeof StudentBiometricRoute
-  '/student/complaints': typeof StudentComplaintsRoute
   '/student/courses': typeof StudentCoursesRoute
   '/student/dashboard': typeof StudentDashboardRoute
   '/student/discussion-forum': typeof StudentDiscussionForumRoute
@@ -5625,16 +5559,10 @@ export interface FileRoutesById {
   '/student/feedback': typeof StudentFeedbackRoute
   '/student/finance': typeof StudentFinanceRoute
   '/student/id-card': typeof StudentIdCardRoute
-  '/student/leaves': typeof StudentLeavesRoute
   '/student/library': typeof StudentLibraryRoute
   '/student/lms': typeof StudentLmsRoute
-  '/student/login': typeof StudentLoginRoute
-  '/student/mess': typeof StudentMessRoute
-  '/student/notifications': typeof StudentNotificationsRoute
-  '/student/outings': typeof StudentOutingsRoute
   '/student/profile': typeof StudentProfileRoute
   '/student/results': typeof StudentResultsRoute
-  '/student/room': typeof StudentRoomRoute
   '/student/timetable': typeof StudentTimetableRoute
   '/student/updates': typeof StudentUpdatesRoute
   '/student/webinars': typeof StudentWebinarsRoute
@@ -6260,8 +6188,6 @@ export interface FileRouteTypes {
     | '/staff/student-dean'
     | '/staff/student_dean'
     | '/student/attendance'
-    | '/student/biometric'
-    | '/student/complaints'
     | '/student/courses'
     | '/student/dashboard'
     | '/student/discussion-forum'
@@ -6269,16 +6195,10 @@ export interface FileRouteTypes {
     | '/student/feedback'
     | '/student/finance'
     | '/student/id-card'
-    | '/student/leaves'
     | '/student/library'
     | '/student/lms'
-    | '/student/login'
-    | '/student/mess'
-    | '/student/notifications'
-    | '/student/outings'
     | '/student/profile'
     | '/student/results'
-    | '/student/room'
     | '/student/timetable'
     | '/student/updates'
     | '/student/webinars'
@@ -6874,8 +6794,6 @@ export interface FileRouteTypes {
     | '/placement/students'
     | '/staff/student_dean'
     | '/student/attendance'
-    | '/student/biometric'
-    | '/student/complaints'
     | '/student/courses'
     | '/student/dashboard'
     | '/student/discussion-forum'
@@ -6883,16 +6801,10 @@ export interface FileRouteTypes {
     | '/student/feedback'
     | '/student/finance'
     | '/student/id-card'
-    | '/student/leaves'
     | '/student/library'
     | '/student/lms'
-    | '/student/login'
-    | '/student/mess'
-    | '/student/notifications'
-    | '/student/outings'
     | '/student/profile'
     | '/student/results'
-    | '/student/room'
     | '/student/timetable'
     | '/student/updates'
     | '/student/webinars'
@@ -7516,8 +7428,6 @@ export interface FileRouteTypes {
     | '/staff/student-dean'
     | '/staff/student_dean'
     | '/student/attendance'
-    | '/student/biometric'
-    | '/student/complaints'
     | '/student/courses'
     | '/student/dashboard'
     | '/student/discussion-forum'
@@ -7525,16 +7435,10 @@ export interface FileRouteTypes {
     | '/student/feedback'
     | '/student/finance'
     | '/student/id-card'
-    | '/student/leaves'
     | '/student/library'
     | '/student/lms'
-    | '/student/login'
-    | '/student/mess'
-    | '/student/notifications'
-    | '/student/outings'
     | '/student/profile'
     | '/student/results'
-    | '/student/room'
     | '/student/timetable'
     | '/student/updates'
     | '/student/webinars'
@@ -9455,20 +9359,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentAttendanceRouteImport
       parentRoute: typeof StudentRoute
     }
-    '/student/biometric': {
-      id: '/student/biometric'
-      path: '/biometric'
-      fullPath: '/student/biometric'
-      preLoaderRoute: typeof StudentBiometricRouteImport
-      parentRoute: typeof StudentRoute
-    }
-    '/student/complaints': {
-      id: '/student/complaints'
-      path: '/complaints'
-      fullPath: '/student/complaints'
-      preLoaderRoute: typeof StudentComplaintsRouteImport
-      parentRoute: typeof StudentRoute
-    }
     '/student/courses': {
       id: '/student/courses'
       path: '/courses'
@@ -9518,13 +9408,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentIdCardRouteImport
       parentRoute: typeof StudentRoute
     }
-    '/student/leaves': {
-      id: '/student/leaves'
-      path: '/leaves'
-      fullPath: '/student/leaves'
-      preLoaderRoute: typeof StudentLeavesRouteImport
-      parentRoute: typeof StudentRoute
-    }
     '/student/library': {
       id: '/student/library'
       path: '/library'
@@ -9539,34 +9422,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentLmsRouteImport
       parentRoute: typeof StudentRoute
     }
-    '/student/login': {
-      id: '/student/login'
-      path: '/login'
-      fullPath: '/student/login'
-      preLoaderRoute: typeof StudentLoginRouteImport
-      parentRoute: typeof StudentRoute
-    }
-    '/student/mess': {
-      id: '/student/mess'
-      path: '/mess'
-      fullPath: '/student/mess'
-      preLoaderRoute: typeof StudentMessRouteImport
-      parentRoute: typeof StudentRoute
-    }
-    '/student/notifications': {
-      id: '/student/notifications'
-      path: '/notifications'
-      fullPath: '/student/notifications'
-      preLoaderRoute: typeof StudentNotificationsRouteImport
-      parentRoute: typeof StudentRoute
-    }
-    '/student/outings': {
-      id: '/student/outings'
-      path: '/outings'
-      fullPath: '/student/outings'
-      preLoaderRoute: typeof StudentOutingsRouteImport
-      parentRoute: typeof StudentRoute
-    }
     '/student/profile': {
       id: '/student/profile'
       path: '/profile'
@@ -9579,13 +9434,6 @@ declare module '@tanstack/react-router' {
       path: '/results'
       fullPath: '/student/results'
       preLoaderRoute: typeof StudentResultsRouteImport
-      parentRoute: typeof StudentRoute
-    }
-    '/student/room': {
-      id: '/student/room'
-      path: '/room'
-      fullPath: '/student/room'
-      preLoaderRoute: typeof StudentRoomRouteImport
       parentRoute: typeof StudentRoute
     }
     '/student/timetable': {
@@ -13933,8 +13781,6 @@ const StaffRouteWithChildren = StaffRoute._addFileChildren(StaffRouteChildren)
 
 interface StudentRouteChildren {
   StudentAttendanceRoute: typeof StudentAttendanceRoute
-  StudentBiometricRoute: typeof StudentBiometricRoute
-  StudentComplaintsRoute: typeof StudentComplaintsRoute
   StudentCoursesRoute: typeof StudentCoursesRoute
   StudentDashboardRoute: typeof StudentDashboardRoute
   StudentDiscussionForumRoute: typeof StudentDiscussionForumRoute
@@ -13942,16 +13788,10 @@ interface StudentRouteChildren {
   StudentFeedbackRoute: typeof StudentFeedbackRoute
   StudentFinanceRoute: typeof StudentFinanceRoute
   StudentIdCardRoute: typeof StudentIdCardRoute
-  StudentLeavesRoute: typeof StudentLeavesRoute
   StudentLibraryRoute: typeof StudentLibraryRoute
   StudentLmsRoute: typeof StudentLmsRoute
-  StudentLoginRoute: typeof StudentLoginRoute
-  StudentMessRoute: typeof StudentMessRoute
-  StudentNotificationsRoute: typeof StudentNotificationsRoute
-  StudentOutingsRoute: typeof StudentOutingsRoute
   StudentProfileRoute: typeof StudentProfileRoute
   StudentResultsRoute: typeof StudentResultsRoute
-  StudentRoomRoute: typeof StudentRoomRoute
   StudentTimetableRoute: typeof StudentTimetableRoute
   StudentUpdatesRoute: typeof StudentUpdatesRoute
   StudentWebinarsRoute: typeof StudentWebinarsRoute
@@ -13960,8 +13800,6 @@ interface StudentRouteChildren {
 
 const StudentRouteChildren: StudentRouteChildren = {
   StudentAttendanceRoute: StudentAttendanceRoute,
-  StudentBiometricRoute: StudentBiometricRoute,
-  StudentComplaintsRoute: StudentComplaintsRoute,
   StudentCoursesRoute: StudentCoursesRoute,
   StudentDashboardRoute: StudentDashboardRoute,
   StudentDiscussionForumRoute: StudentDiscussionForumRoute,
@@ -13969,16 +13807,10 @@ const StudentRouteChildren: StudentRouteChildren = {
   StudentFeedbackRoute: StudentFeedbackRoute,
   StudentFinanceRoute: StudentFinanceRoute,
   StudentIdCardRoute: StudentIdCardRoute,
-  StudentLeavesRoute: StudentLeavesRoute,
   StudentLibraryRoute: StudentLibraryRoute,
   StudentLmsRoute: StudentLmsRoute,
-  StudentLoginRoute: StudentLoginRoute,
-  StudentMessRoute: StudentMessRoute,
-  StudentNotificationsRoute: StudentNotificationsRoute,
-  StudentOutingsRoute: StudentOutingsRoute,
   StudentProfileRoute: StudentProfileRoute,
   StudentResultsRoute: StudentResultsRoute,
-  StudentRoomRoute: StudentRoomRoute,
   StudentTimetableRoute: StudentTimetableRoute,
   StudentUpdatesRoute: StudentUpdatesRoute,
   StudentWebinarsRoute: StudentWebinarsRoute,
