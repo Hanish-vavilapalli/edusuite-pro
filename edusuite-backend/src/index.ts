@@ -59,6 +59,7 @@ import lmsRoutes from "./modules/lms/lms.routes";
 import hodRoutes from "./modules/hod/hod.routes";
 import resultsRoutes from "./modules/results/results.routes";
 import inventoryRoutes from "./modules/inventory/inventory.routes";
+import procurementRoutes from "./modules/procurement/procurement.routes";
 
 // Register routes
 app.use("/api/auth", authRoutes);
@@ -84,6 +85,7 @@ app.use("/api/student/lms", lmsRoutes);
 app.use("/api/hod", hodRoutes);
 app.use("/api/results", resultsRoutes);
 app.use("/api/inventory", inventoryRoutes);
+app.use("/api/procurement", procurementRoutes);
 
 // Boot server
 app.listen(PORT, async () => {

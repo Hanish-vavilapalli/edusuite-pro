@@ -1,120 +1,147 @@
 import api from "@/lib/api";
 
-export interface PurchaseOrder {
-  poNumber: string;
-  vendorName: string;
-  requestedBy: string;
+export interface WorkflowStep {
+  stepNumber: number;
+  requiredRole: string;
+  label: string;
+  flagRequired?: string;
+  assignedApprover?: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "RETURNED" | "SKIPPED";
+  action?: string;
+  comment?: string;
+  actedAt?: string;
+  actorId?: string;
+  actorName?: string;
+}
+
+export interface EquipmentRequestMetadata {
+  equipmentName?: string;
+  category?: string;
+  quantity?: number;
+  requiredFor?: string;
+  location?: string;
+  estimatedUnitCost?: number;
+  estimatedTotalCost?: number;
+  justification?: string;
+  requiredByDate?: string;
+  supportingDoc?: string;
+  submittedAt?: string;
+}
+
+export interface DamageReportMetadata {
+  assetId?: string;
+  assetCode?: string;
+  assetName?: string;
+  category?: string;
+  location?: string;
+  problemType?: string;
+  problemDescription?: string;
+  severity?: string;
+  dateDiscovered?: string;
+  reportedBy?: string;
+  supportingDoc?: string;
+  submittedAt?: string;
+}
+
+export interface ProcurementRecord {
+  id: string;
+  requestNumber: string;
+  requestType: "EQUIPMENT_REQUEST" | "DAMAGE_REPORT";
+  module: string;
+  workflowCode: string;
+  title: string;
+  description: string;
   department: string;
-  itemsDescription: string;
-  totalAmount: number;
-  requestDate: string;
-  deliveryDate?: string;
-  approvalStatus: "Submitted" | "HOD Approved" | "Finance Approved" | "Principal Approved" | "Rejected";
+  requestedBy: string;
+  requestedByRole: string;
+  priority: string;
+  status: string;
+  currentStage: string;
+  currentStep: number;
+  totalSteps: number;
+  amount: number;
+  entityType?: string;
+  entityId?: string;
+  createdAt: string;
+  updatedAt: string;
+  metadata?: EquipmentRequestMetadata & DamageReportMetadata;
+  steps?: WorkflowStep[];
 }
 
-export const INITIAL_PURCHASE_ORDERS: PurchaseOrder[] = [
-  {
-    poNumber: "PO-2026-881",
-    vendorName: "Dell India Pvt Ltd",
-    requestedBy: "Dr. S. K. Gupta",
-    department: "CSE",
-    itemsDescription: "50 High-Performance GPU Workstations for AI Research Lab",
-    totalAmount: 4250000,
-    requestDate: "2026-07-28",
-    deliveryDate: "2026-08-20",
-    approvalStatus: "Finance Approved",
-  },
-  {
-    poNumber: "PO-2026-882",
-    vendorName: "Tektronix Instruments Ltd",
-    requestedBy: "Dr. Meera Rao",
-    department: "ECE",
-    itemsDescription: "Signal Analyzers, VLSI Test Benches & High Frequency Probes",
-    totalAmount: 1850000,
-    requestDate: "2026-07-30",
-    deliveryDate: "2026-08-15",
-    approvalStatus: "HOD Approved",
-  },
-  {
-    poNumber: "PO-2026-883",
-    vendorName: "Godrej Campus Furniture",
-    requestedBy: "Prof. V. K. Murthy",
-    department: "Admin",
-    itemsDescription: "Auditorium Ergonomic Seats & Seminar Hall Podiums",
-    totalAmount: 950000,
-    requestDate: "2026-08-01",
-    deliveryDate: "2026-08-25",
-    approvalStatus: "Submitted",
-  },
-  {
-    poNumber: "PO-2026-884",
-    vendorName: "Thermo Fisher Scientific",
-    requestedBy: "Dr. K. Sai Teja",
-    department: "Biotech",
-    itemsDescription: "Spectrophotometers & Spectrometry Reagents",
-    totalAmount: 1200000,
-    requestDate: "2026-07-20",
-    deliveryDate: "2026-08-10",
-    approvalStatus: "Principal Approved",
-  },
-  {
-    poNumber: "PO-2026-885",
-    vendorName: "Universal Books Distributor",
-    requestedBy: "Mrs. L. Subhashini",
-    department: "Library",
-    itemsDescription: "250 International Textbooks for IEEE & Springer Catalog",
-    totalAmount: 340000,
-    requestDate: "2026-07-22",
-    deliveryDate: "2026-08-05",
-    approvalStatus: "Rejected",
-  },
-];
-
-export async function fetchPurchaseOrders(): Promise<PurchaseOrder[]> {
-  try {
-    const res = await api.get("/api/procurement");
-    if (res && Array.isArray(res.data) && res.data.length > 0) {
-      return res.data;
-    }
-  } catch {}
-  return INITIAL_PURCHASE_ORDERS;
+export interface ProcurementStats {
+  departmentScope: string;
+  openRequests: number;
+  pendingApprovals: number;
+  approvedRequests: number;
+  damageReports: number;
+  totalEstimatedSpend: number;
 }
 
-export async function createPurchaseOrder(poData: Partial<PurchaseOrder>): Promise<PurchaseOrder> {
-  try {
-    const res = await api.post("/api/procurement", poData);
-    if (res && res.data && res.data.poNumber) return res.data;
-  } catch {}
-
-  const newPO: PurchaseOrder = {
-    poNumber: `PO-2026-${Math.floor(886 + Math.random() * 100)}`,
-    vendorName: poData.vendorName || "Approved Vendor",
-    requestedBy: poData.requestedBy || "Dr. Rajesh Sharma",
-    department: poData.department || "CSE",
-    itemsDescription: poData.itemsDescription || "Equipment & Supplies Purchase",
-    totalAmount: Number(poData.totalAmount) || 150000,
-    requestDate: new Date().toISOString().split("T")[0],
-    deliveryDate: poData.deliveryDate || "2026-08-30",
-    approvalStatus: "Submitted",
-  };
-
-  return newPO;
+export interface DepartmentAsset {
+  id: string;
+  itemCode: string;
+  assetTag: string;
+  name: string;
+  category: string;
+  department: string;
+  location: string;
+  status: string;
+  quantity: number;
+  unitCost?: number;
 }
 
-export async function updatePOStatus(
-  poNumber: string,
-  approvalStatus: PurchaseOrder["approvalStatus"],
-): Promise<Partial<PurchaseOrder>> {
-  try {
-    const res = await api.put(`/api/procurement/${poNumber}`, { approvalStatus });
-    if (res && res.data) return res.data;
-  } catch {}
-  return { poNumber, approvalStatus };
+export async function fetchProcurementStats(): Promise<ProcurementStats> {
+  const res = await api.get("/api/procurement/stats");
+  return res.data;
 }
 
-export async function deletePO(poNumber: string): Promise<boolean> {
-  try {
-    await api.delete(`/api/procurement/${poNumber}`);
-  } catch {}
-  return true;
+export async function fetchProcurementRecords(params?: {
+  type?: string;
+  status?: string;
+  search?: string;
+  department?: string;
+}): Promise<ProcurementRecord[]> {
+  const res = await api.get("/api/procurement", { params });
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function fetchDepartmentAssets(): Promise<DepartmentAsset[]> {
+  const res = await api.get("/api/procurement/department-assets");
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function createEquipmentRequest(data: {
+  equipmentName: string;
+  category: string;
+  quantity: number;
+  requiredFor: string;
+  location: string;
+  priority: string;
+  estimatedUnitCost?: number;
+  estimatedTotalCost: number;
+  justification: string;
+  requiredByDate?: string;
+  supportingDoc?: string;
+}): Promise<ProcurementRecord> {
+  const res = await api.post("/api/procurement/request", data);
+  return res.data;
+}
+
+export async function submitDamageReport(data: {
+  assetId: string;
+  problemType: string;
+  problemDescription: string;
+  severity: string;
+  dateDiscovered?: string;
+  reportedBy?: string;
+  location?: string;
+  supportingDoc?: string;
+}): Promise<ProcurementRecord> {
+  const res = await api.post("/api/procurement/damage-report", data);
+  return res.data;
+}
+
+export async function fetchProcurementDetail(id: string): Promise<ProcurementRecord> {
+  const res = await api.get(`/api/procurement/${id}`);
+  return res.data;
 }

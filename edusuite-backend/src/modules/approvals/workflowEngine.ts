@@ -123,6 +123,29 @@ export const WORKFLOW_DEFINITIONS: Record<string, WorkflowConfig> = {
       { stepNumber: 2, requiredRole: "super_admin", flagRequired: "isSystemAdmin", label: "Super Admin Executive Security Enforcement", status: "PENDING" },
     ],
   },
+  EQUIPMENT_PROCUREMENT: {
+    workflowCode: "EQUIPMENT_PROCUREMENT",
+    module: "PROCUREMENT",
+    title: "Department Equipment & Materials Requisition",
+    totalSteps: 4,
+    steps: [
+      { stepNumber: 1, requiredRole: "hod", flagRequired: "isHod", label: "Department Requirement Proposal", status: "APPROVED" },
+      { stepNumber: 2, requiredRole: "admin", label: "Procurement & Administrative Review", status: "PENDING" },
+      { stepNumber: 3, requiredRole: "finance", flagRequired: "isFinance", label: "Finance Sanction & Fund Clearance", status: "PENDING" },
+      { stepNumber: 4, requiredRole: "super_admin", flagRequired: "isSystemAdmin", label: "Executive Approval & PO Release", status: "PENDING" },
+    ],
+  },
+  EQUIPMENT_DAMAGE_REPORT: {
+    workflowCode: "EQUIPMENT_DAMAGE_REPORT",
+    module: "INVENTORY",
+    title: "Department Equipment Damage & Defect Report",
+    totalSteps: 3,
+    steps: [
+      { stepNumber: 1, requiredRole: "hod", flagRequired: "isHod", label: "Damage & Breakdown Notification", status: "APPROVED" },
+      { stepNumber: 2, requiredRole: "admin", label: "Technical & Lab Inspection", status: "PENDING" },
+      { stepNumber: 3, requiredRole: "admin", label: "Action Resolution (Repair / Replacement / Write-off)", status: "PENDING" },
+    ],
+  },
 };
 
 /**
