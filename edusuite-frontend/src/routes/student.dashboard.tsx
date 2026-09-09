@@ -1,19 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PersonalizedStudentPortal } from "@/modules/student-portal/PersonalizedStudentPortal";
+import { StudentDashboardPage } from "@/components/student-dashboard";
 
 export const Route = createFileRoute("/student/dashboard")({
   head: () => ({
-    meta: [
-      { title: "Personalized Student Portal — CampusStay Hostel" },
-      {
-        name: "description",
-        content: "Personalized student dashboard for room allocation, mess tokens, outing requests, and biometric gate tracking.",
-      },
-    ],
+    meta: [{ title: "Student Dashboard — EduSuite Pro" }],
   }),
-  component: StudentDashboardRoute,
+  component: StudentDashboardPage,
 });
-
-function StudentDashboardRoute() {
-  return <PersonalizedStudentPortal initialTab="dashboard" />;
-}

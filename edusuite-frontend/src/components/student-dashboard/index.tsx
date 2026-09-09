@@ -31,7 +31,6 @@ import { ExamWidget } from "./exam-widget";
 import { FinanceWidget } from "./finance-widget";
 import { LmsWidget } from "./lms-widget";
 import { LibraryWidget } from "./library-widget";
-import { HostelWidget } from "./hostel-widget";
 import { TransportWidget } from "./transport-widget";
 import { PlacementWidget } from "./placement-widget";
 import { AnnouncementWidget } from "./announcement-widget";
@@ -244,9 +243,6 @@ export function StudentDashboardPage() {
 
                 {/* SECTION 10: LIBRARY */}
                 <LibraryWidget onOpenLibrary={() => handleNavigate("/student/library")} />
-
-                {/* SECTION 11: HOSTEL */}
-                <HostelWidget hostel={MOCK_HOSTEL_SNAPSHOT} onNavigate={handleNavigate} />
 
                 {/* SECTION 12: TRANSPORT */}
                 <TransportWidget transport={MOCK_TRANSPORT_SNAPSHOT} onNavigate={handleNavigate} />
