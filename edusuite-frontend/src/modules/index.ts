@@ -23,7 +23,6 @@ export * as SubjectAllocationModule from "./subject-allocation";
 
 // Institutional & Campus Operations
 export * as LibraryModule from "./library";
-export * as HostelModule from "./hostel";
 export * as TransportModule from "./transport";
 export * as CampusEventsModule from "./campus-events";
 export * as FinanceModule from "./finance";

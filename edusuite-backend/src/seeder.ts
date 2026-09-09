@@ -1,7 +1,6 @@
 import { prisma } from "./db";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
-import { seedHostelDatabase } from "./modules/hostel/hostel.seeder";
 
 const FIRST_NAMES = [
   "Aarav", "Vihaan", "Aditya", "Sai", "Rahul", "Ananya", "Diya", "Sanya", "Neha", "Arjun",
@@ -362,9 +361,6 @@ export async function seedDatabase() {
   await prisma.student.createMany({
     data: studentsToInsert,
   });
-
-  // Seed Hostel ERP domain records
-  await seedHostelDatabase();
 
   console.log("Database seed completed successfully.");
 }

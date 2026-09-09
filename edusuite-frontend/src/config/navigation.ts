@@ -102,7 +102,6 @@ export const studentNavigation: NavSection[] = [
       { title: "Attendance", url: "/student/attendance", icon: ClipboardCheck },
       { title: "Feedback", url: "/student/feedback", icon: MessageSquare },
       { title: "Course Registrations", url: "/student/examinations", icon: FileText },
-      { title: "Hostel", url: "/student/hostel", icon: BedDouble },
       { title: "Discussion Forum", url: "/student/discussion-forum", icon: MessageCircle },
       { title: "Payments", url: "/student/finance", icon: CreditCard },
       { title: "OPAC", url: "/student/library", icon: Library },
@@ -186,7 +185,6 @@ export const navigation: NavSection[] = [
     label: "Campus Services",
     items: [
       { title: "Library", url: "/library", icon: Library, moduleId: "library" },
-      { title: "Hostel", url: "/hostel", icon: BedDouble, moduleId: "hostel" },
       { title: "Transport", url: "/transport", icon: Bus, moduleId: "transport" },
       { title: "Placements", url: "/placements", icon: Briefcase, moduleId: "placement" },
       { title: "Inventory", url: "/inventory", icon: Package, moduleId: "inventory" },
@@ -435,7 +433,6 @@ export const SUPER_ADMIN_NAVIGATION: NavSection[] = [
     label: "Campus Services & Facilities",
     items: [
       { title: "Library Management", url: "/library", icon: Library },
-      { title: "Hostel & Resident Welfare", url: "/hostel", icon: BedDouble },
       { title: "Transport & Fleet Management", url: "/transport", icon: Bus },
       { title: "Placements & Recruiters", url: "/placements", icon: Briefcase },
       { title: "Payroll Management", url: "/super-admin/payroll", icon: CreditCard, badge: "ERP" },
