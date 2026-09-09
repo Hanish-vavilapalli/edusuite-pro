@@ -190,14 +190,15 @@ model Notification {
 }
 
 model Department {
-  id            String   @id @default(uuid())
-  name          String   @unique
-  code          String   @unique
-  hodName       String?
-  accreditation String?  @default("NBA & NAAC A+")
-  status        String   @default("Active") // "Active" | "Under Review"
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String          @id @default(uuid())
+  name           String          @unique
+  code           String          @unique
+  hodName        String?
+  accreditation  String?         @default("NBA & NAAC A+")
+  status         String          @default("Active") // "Active" | "Under Review"
+  inventoryItems InventoryItem[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 }
 
 model AuditLog {
@@ -1454,4 +1455,37 @@ model PlacementRecord {
 
   @@index([studentId])
   @@index([driveId])
+}
+
+/// Inventory and Asset Tracking model for academic departments and institution facilities.
+/// Department scope is enforced via departmentId/department code — HOD sees only their department assets.
+model InventoryItem {
+  id              String      @id @default(uuid())
+  assetTag        String?     @unique // e.g. "INV-101"
+  name            String
+  category        String      // "IT Hardware" | "Lab Equipment" | "Furniture" | "Stationery" | "Sports Gear"
+  departmentId    String?
+  departmentRef   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  department      String      // Department code e.g. "CSE", "ECE", "ME", "CIVIL", "EEE", "IT", "AI&ML", "AI&DS", or "INSTITUTION"
+  location        String      // Descriptive location e.g. "CSE Lab 3 (Block A)"
+  building        String?     // e.g. "Block A"
+  room            String?     // e.g. "Lab 3"
+  roomType        String?     // "Lab" | "Classroom" | "Office" | "Store" | "Facility"
+  serialNumber    String?
+  quantity        Int         @default(0)
+  minThreshold    Int         @default(5)
+  unitCost        Float       @default(0)
+  status          String      @default("In Stock") // "In Stock" | "Low Stock" | "Out of Stock" | "Under Maintenance"
+  assignedTo      String?     // Faculty/staff name or ID
+  lastRestockedOn String?     // YYYY-MM-DD
+  purchaseDate    String?     // YYYY-MM-DD
+  vendor          String?
+  remarks         String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([department])
+  @@index([departmentId])
+  @@index([category])
+  @@index([status])
 }

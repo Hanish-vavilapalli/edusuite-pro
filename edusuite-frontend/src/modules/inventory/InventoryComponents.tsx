@@ -16,11 +16,9 @@ import {
   List,
   Building2,
   DollarSign,
-  TrendingDown,
   Box,
   PlusCircle,
   Barcode,
-  Calendar,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -43,14 +41,17 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { useRole } from "@/context/role-context";
 
 import {
   fetchInventoryItems,
+  fetchInventoryStats,
   addInventoryItem,
   updateInventoryItem,
+  restockInventoryItem,
   deleteInventoryItem,
-  INITIAL_INVENTORY_ITEMS,
   type InventoryItem,
+  type InventoryStats,
 } from "./InventoryService";
 
 const CATEGORIES = [
@@ -62,15 +63,19 @@ const CATEGORIES = [
   "Sports Gear",
 ];
 
-const STATUS_OPTIONS = ["All Statuses", "In Stock", "Low Stock", "Out of Stock"];
+const STATUS_OPTIONS = ["All Statuses", "In Stock", "Low Stock", "Out of Stock", "Under Maintenance"];
 
 export function InventoryModuleView() {
-  const [items, setItems] = useState<InventoryItem[]>(INITIAL_INVENTORY_ITEMS);
+  const { role, flags, department: userDept } = useRole();
+  const isHod = role === "hod" || flags?.includes("isHod");
+
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [stats, setStats] = useState<InventoryStats | null>(null);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
   const [selectedStatus, setSelectedStatus] = useState("All Statuses");
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Dialog States
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -88,30 +93,49 @@ export function InventoryModuleView() {
     quantity: 10,
     minThreshold: 5,
     unitCost: 5000,
-    location: "Central Stores",
+    location: "",
+    building: "Block A",
+    room: "",
+    roomType: "Lab",
     serialNumber: "",
     status: "In Stock",
+    assignedTo: "",
+    vendor: "",
   });
 
   const loadData = async () => {
     setLoading(true);
-    const data = await fetchInventoryItems();
-    setItems(data);
-    setLoading(false);
+    try {
+      const [itemsData, statsData] = await Promise.all([
+        fetchInventoryItems(),
+        fetchInventoryStats(),
+      ]);
+      setItems(itemsData);
+      setStats(statsData);
+    } catch (err: any) {
+      console.error("Error loading inventory:", err);
+      toast.error("Failed to load department inventory.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     loadData();
   }, []);
 
-  // Filter Logic
+  // Filter Logic (operates strictly over department-scoped assets returned by PostgreSQL)
   const filtered = items.filter((item) => {
+    const q = search.toLowerCase().trim();
     const matchesSearch =
-      item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.id.toLowerCase().includes(search.toLowerCase()) ||
-      item.category.toLowerCase().includes(search.toLowerCase()) ||
-      item.location.toLowerCase().includes(search.toLowerCase()) ||
-      (item.serialNumber && item.serialNumber.toLowerCase().includes(search.toLowerCase()));
+      !q ||
+      item.name.toLowerCase().includes(q) ||
+      item.id.toLowerCase().includes(q) ||
+      (item.assetTag && item.assetTag.toLowerCase().includes(q)) ||
+      item.category.toLowerCase().includes(q) ||
+      item.location.toLowerCase().includes(q) ||
+      (item.serialNumber && item.serialNumber.toLowerCase().includes(q)) ||
+      (item.assignedTo && item.assignedTo.toLowerCase().includes(q));
 
     const matchesCategory =
       selectedCategory === "All Categories" || item.category === selectedCategory;
@@ -122,23 +146,29 @@ export function InventoryModuleView() {
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
-  // KPI Metrics
-  const totalItems = items.length;
-  const totalValuation = items.reduce((sum, i) => sum + i.quantity * i.unitCost, 0);
-  const lowStockCount = items.filter((i) => i.status !== "In Stock").length;
-  const inStockCount = items.filter((i) => i.status === "In Stock").length;
+  // KPI Metrics (strictly scoped to authenticated HOD's department from PostgreSQL)
+  const totalItems = stats?.totalItems ?? items.length;
+  const totalValuation = stats?.totalValuation ?? items.reduce((sum, i) => sum + i.quantity * i.unitCost, 0);
+  const inStockCount = stats?.inStockCount ?? items.filter((i) => i.status === "In Stock").length;
+  const lowStockCount = stats?.lowStockCount ?? items.filter((i) => i.status !== "In Stock").length;
 
   // Handlers
   const handleOpenAdd = () => {
+    const currentDept = stats?.department || userDept || "CSE";
     setFormData({
       name: "",
       category: "IT Hardware",
       quantity: 25,
-      minThreshold: 10,
+      minThreshold: 5,
       unitCost: 15000,
-      location: "CSE Lab 3 (Block A)",
-      serialNumber: `SN-HW-${Math.floor(1000 + Math.random() * 9000)}`,
+      location: `${currentDept} Lab 1 (Block A)`,
+      building: "Block A",
+      room: "Lab 1",
+      roomType: "Lab",
+      serialNumber: `SN-${currentDept}-${Math.floor(1000 + Math.random() * 9000)}`,
       status: "In Stock",
+      assignedTo: "",
+      vendor: "",
     });
     setIsAddDialogOpen(true);
   };
@@ -166,60 +196,70 @@ export function InventoryModuleView() {
       toast.error("Please provide an asset item name.");
       return;
     }
-    const created = await addInventoryItem(formData);
-    setItems((prev) => [created, ...prev]);
-    setIsAddDialogOpen(false);
-    toast.success(`Asset "${created.name}" registered with ID ${created.id}!`);
+    try {
+      const created = await addInventoryItem(formData);
+      setItems((prev) => [created, ...prev]);
+      const updatedStats = await fetchInventoryStats();
+      if (updatedStats) setStats(updatedStats);
+      setIsAddDialogOpen(false);
+      toast.success(`Asset "${created.name}" registered with ID ${created.id}!`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to register asset.");
+    }
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItem) return;
-    const qty = Number(formData.quantity) || 0;
-    const min = Number(formData.minThreshold) || 5;
-    const computedStatus = qty === 0 ? "Out of Stock" : qty <= min ? "Low Stock" : "In Stock";
+    try {
+      const qty = Number(formData.quantity) || 0;
+      const min = Number(formData.minThreshold) || 5;
+      const computedStatus = qty === 0 ? "Out of Stock" : qty <= min ? "Low Stock" : "In Stock";
 
-    const updatedData = { ...formData, status: computedStatus };
-    await updateInventoryItem(selectedItem.id, updatedData);
-    setItems((prev) =>
-      prev.map((i) => (i.id === selectedItem.id ? ({ ...i, ...updatedData } as InventoryItem) : i)),
-    );
-    setIsEditDialogOpen(false);
-    toast.success(`Asset "${formData.name}" updated successfully!`);
+      const updatedData = { ...formData, status: computedStatus };
+      const updated = await updateInventoryItem(selectedItem.id, updatedData);
+      setItems((prev) =>
+        prev.map((i) => (i.id === selectedItem.id ? updated : i)),
+      );
+      const updatedStats = await fetchInventoryStats();
+      if (updatedStats) setStats(updatedStats);
+      setIsEditDialogOpen(false);
+      toast.success(`Asset "${updated.name}" updated successfully!`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update asset.");
+    }
   };
 
   const handleRestockSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItem) return;
-    const newQty = selectedItem.quantity + Number(restockQty);
-    const computedStatus = newQty <= selectedItem.minThreshold ? "Low Stock" : "In Stock";
-    const today = new Date().toISOString().split("T")[0];
-
-    await updateInventoryItem(selectedItem.id, {
-      quantity: newQty,
-      status: computedStatus,
-      lastRestockedOn: today,
-    });
-
-    setItems((prev) =>
-      prev.map((i) =>
-        i.id === selectedItem.id
-          ? { ...i, quantity: newQty, status: computedStatus, lastRestockedOn: today }
-          : i,
-      ),
-    );
-
-    setIsRestockDialogOpen(false);
-    toast.success(
-      `Restocked ${restockQty} units of ${selectedItem.name}. New Quantity: ${newQty} (${computedStatus})!`,
-    );
+    try {
+      const updated = await restockInventoryItem(selectedItem.id, Number(restockQty));
+      setItems((prev) =>
+        prev.map((i) => (i.id === selectedItem.id ? updated : i)),
+      );
+      const updatedStats = await fetchInventoryStats();
+      if (updatedStats) setStats(updatedStats);
+      setIsRestockDialogOpen(false);
+      toast.success(
+        `Restocked ${restockQty} units of ${updated.name}. New Quantity: ${updated.quantity} (${updated.status})!`,
+      );
+    } catch (err: any) {
+      toast.error(err.message || "Failed to restock asset.");
+    }
   };
 
   const handleDelete = async (item: InventoryItem) => {
     if (confirm(`Are you sure you want to delete asset ${item.name} (${item.id})?`)) {
-      await deleteInventoryItem(item.id);
-      setItems((prev) => prev.filter((i) => i.id !== item.id));
-      toast.success(`Asset ${item.name} deleted from inventory.`);
+      try {
+        await deleteInventoryItem(item.id);
+        setItems((prev) => prev.filter((i) => i.id !== item.id));
+        const updatedStats = await fetchInventoryStats();
+        if (updatedStats) setStats(updatedStats);
+        toast.success(`Asset ${item.name} deleted from inventory.`);
+      } catch (err: any) {
+        toast.error(err.message || "Failed to delete asset.");
+      }
     }
   };
 
@@ -228,6 +268,7 @@ export function InventoryModuleView() {
       "ID",
       "Asset Name",
       "Category",
+      "Department",
       "Quantity",
       "Min Threshold",
       "Unit Cost (INR)",
@@ -235,12 +276,14 @@ export function InventoryModuleView() {
       "Location",
       "Serial Number",
       "Status",
+      "Assigned To",
       "Last Restocked",
     ];
     const rows = filtered.map((i) => [
       i.id,
       `"${i.name}"`,
       i.category,
+      `"${i.department || stats?.department || ""}"`,
       i.quantity,
       i.minThreshold,
       i.unitCost,
@@ -248,6 +291,7 @@ export function InventoryModuleView() {
       `"${i.location}"`,
       `"${i.serialNumber || "N/A"}"`,
       i.status,
+      `"${i.assignedTo || "N/A"}"`,
       i.lastRestockedOn || "N/A",
     ]);
 
@@ -255,17 +299,18 @@ export function InventoryModuleView() {
       "data:text/csv;charset=utf-8," +
       [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
 
+    const deptCode = stats?.department || userDept || "All";
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
     link.setAttribute(
       "download",
-      `Inventory_Catalog_${new Date().toISOString().split("T")[0]}.csv`,
+      `Inventory_Catalog_${deptCode}_${new Date().toISOString().split("T")[0]}.csv`,
     );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success(`Exported ${filtered.length} inventory items to CSV!`);
+    toast.success(`Exported ${filtered.length} department inventory items to CSV!`);
   };
 
   return (
@@ -282,11 +327,11 @@ export function InventoryModuleView() {
                 Inventory & Asset Tracking Module
               </h1>
               <Badge variant="outline" className="font-mono text-xs text-primary border-primary/30">
-                Campus Stores Core
+                {stats?.departmentName ? `${stats.departmentName}` : isHod ? `${userDept || "Department"} Scope` : "Institution Scope"}
               </Badge>
             </div>
             <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
-              Track lab equipment, IT assets, stationery thresholds, and campus store locations.
+              Track department lab equipment, IT assets, classrooms, staff areas, and department stores.
             </p>
           </div>
         </div>
@@ -331,7 +376,7 @@ export function InventoryModuleView() {
             <Box className="size-4 text-primary" />
           </div>
           <p className="text-2xl font-bold font-mono text-primary">{totalItems} Items</p>
-          <p className="text-[0.68rem] text-muted-foreground">Cataloged across labs & stores</p>
+          <p className="text-[0.68rem] text-muted-foreground">Cataloged across department labs & stores</p>
         </div>
 
         <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-1">
@@ -342,7 +387,7 @@ export function InventoryModuleView() {
           <p className="text-2xl font-bold font-mono text-emerald-600">
             ₹{totalValuation.toLocaleString("en-IN")}
           </p>
-          <p className="text-[0.68rem] text-muted-foreground">Asset replacement value</p>
+          <p className="text-[0.68rem] text-muted-foreground">Department asset valuation</p>
         </div>
 
         <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-1">
@@ -441,22 +486,30 @@ export function InventoryModuleView() {
       ) : filtered.length === 0 ? (
         <div className="p-12 text-center border border-dashed border-border rounded-2xl bg-card/50 space-y-3">
           <Package className="size-8 text-muted-foreground mx-auto" />
-          <h3 className="text-sm font-semibold text-foreground">No assets found</h3>
+          <h3 className="text-sm font-semibold text-foreground">
+            {items.length === 0
+              ? "No inventory assets found for your department."
+              : "No assets match your search filters."}
+          </h3>
           <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            No inventory items matched your search filters. Try adjusting your search query or status filters.
+            {items.length === 0
+              ? "No equipment or facilities have been cataloged yet for your department."
+              : "Try adjusting your search query, category, or status filter."}
           </p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setSearch("");
-              setSelectedCategory("All Categories");
-              setSelectedStatus("All Statuses");
-            }}
-            className="text-xs"
-          >
-            Reset Filters
-          </Button>
+          {items.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSearch("");
+                setSelectedCategory("All Categories");
+                setSelectedStatus("All Statuses");
+              }}
+              className="text-xs"
+            >
+              Reset Filters
+            </Button>
+          )}
         </div>
       ) : viewMode === "grid" ? (
         /* GRID VIEW */
@@ -683,7 +736,7 @@ export function InventoryModuleView() {
               <Plus className="size-5 text-primary" /> Register New Campus Asset
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Add lab equipment, IT hardware, or stationery to the central inventory catalog.
+              Add lab equipment, IT hardware, or classroom assets to your department inventory.
             </DialogDescription>
           </DialogHeader>
 
@@ -693,7 +746,7 @@ export function InventoryModuleView() {
                 <Label className="text-xs font-semibold">Asset Name *</Label>
                 <Input
                   required
-                  placeholder="e.g. Tektronix Oscilloscopes"
+                  placeholder="e.g. Cisco Catalyst Switches"
                   value={formData.name || ""}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="h-9 text-xs"
@@ -720,10 +773,31 @@ export function InventoryModuleView() {
               </div>
 
               <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Department Scope</Label>
+                <Input
+                  disabled
+                  value={stats?.departmentName || userDept || "CSE"}
+                  className="h-9 text-xs bg-muted text-muted-foreground font-medium"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Campus Location</Label>
+                <Input
+                  required
+                  placeholder="e.g. CSE Lab 1 (Block A)"
+                  value={formData.location || ""}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  className="h-9 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">Initial Quantity</Label>
                 <Input
                   type="number"
                   required
+                  min="0"
                   value={formData.quantity || ""}
                   onChange={(e) =>
                     setFormData({ ...formData, quantity: Number(e.target.value) })
@@ -737,6 +811,7 @@ export function InventoryModuleView() {
                 <Input
                   type="number"
                   required
+                  min="1"
                   value={formData.minThreshold || ""}
                   onChange={(e) =>
                     setFormData({ ...formData, minThreshold: Number(e.target.value) })
@@ -750,6 +825,7 @@ export function InventoryModuleView() {
                 <Input
                   type="number"
                   required
+                  min="0"
                   value={formData.unitCost || ""}
                   onChange={(e) =>
                     setFormData({ ...formData, unitCost: Number(e.target.value) })
@@ -759,24 +835,14 @@ export function InventoryModuleView() {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Campus Location</Label>
+                <Label className="text-xs font-semibold">Serial / Model Number</Label>
                 <Input
-                  placeholder="e.g. ECE VLSI Lab"
-                  value={formData.location || ""}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  className="h-9 text-xs"
+                  placeholder="e.g. SN-CISCO-88102"
+                  value={formData.serialNumber || ""}
+                  onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
+                  className="h-9 text-xs font-mono"
                 />
               </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Serial / Model Number</Label>
-              <Input
-                placeholder="e.g. SN-TEK-88102"
-                value={formData.serialNumber || ""}
-                onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
-                className="h-9 text-xs font-mono"
-              />
             </div>
 
             <DialogFooter className="pt-3 border-t border-border">
@@ -1030,9 +1096,23 @@ export function InventoryModuleView() {
                 </div>
 
                 <div className="flex items-center justify-between p-2 rounded-lg bg-card border border-border/60">
+                  <span className="text-muted-foreground">Department:</span>
+                  <span className="font-medium text-foreground">{selectedItem.department || stats?.department || "CSE"}</span>
+                </div>
+
+                <div className="flex items-center justify-between p-2 rounded-lg bg-card border border-border/60">
                   <span className="text-muted-foreground">Campus Location:</span>
                   <span className="font-medium text-foreground">{selectedItem.location}</span>
                 </div>
+
+                {selectedItem.building && (
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-card border border-border/60">
+                    <span className="text-muted-foreground">Building / Room:</span>
+                    <span className="font-medium text-foreground">
+                      {selectedItem.building} {selectedItem.room ? `- ${selectedItem.room}` : ""}
+                    </span>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between p-2 rounded-lg bg-card border border-border/60">
                   <span className="text-muted-foreground">Serial Number:</span>
@@ -1040,6 +1120,20 @@ export function InventoryModuleView() {
                     {selectedItem.serialNumber || "N/A"}
                   </span>
                 </div>
+
+                {selectedItem.assignedTo && (
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-card border border-border/60">
+                    <span className="text-muted-foreground">Assigned To:</span>
+                    <span className="font-medium text-foreground">{selectedItem.assignedTo}</span>
+                  </div>
+                )}
+
+                {selectedItem.vendor && (
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-card border border-border/60">
+                    <span className="text-muted-foreground">Vendor:</span>
+                    <span className="font-medium text-foreground">{selectedItem.vendor}</span>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between p-2 rounded-lg bg-card border border-border/60">
                   <span className="text-muted-foreground">Last Restocked:</span>
